@@ -1,0 +1,367 @@
+import express from 'express';
+import cors from 'cors';
+import {prisma} from '../lib/prisma.js';
+import { makeCustomAddress, normalizeAddress, isOurDomain } from '../lib/email.js';
+import { createMailboxLimiter, messageAccessLimiter, generalLimiter } from './middleware/rateLimit.js';
+
+interface Server {
+  listen(port: number, callback?: () => void): void;
+}
+
+export function createApiServer(): Server {
+  const app = express();
+  
+  app.use(express.json());
+  
+  const corsOptions = {
+    origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+      if (!origin) return callback(null, true);
+      
+      const allowedOrigins = [
+        'https://temp.willx.tech',
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3001'
+      ];
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log('CORS blocked origin:', origin);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true
+  };
+  
+  app.use(cors(corsOptions));
+
+  app.use('/api', generalLimiter);
+
+  const router = express.Router();
+
+  router.get('/health', (req, res) => res.json({ok: true}));
+
+  router.post('/mailboxes/custom', createMailboxLimiter, async(req, res) => {
+    try {
+      const { username } = req.body;
+      
+      if (!username || typeof username !== 'string') {
+        return res.status(400).json({ error: 'Username is required' });
+      }
+      
+      const address = makeCustomAddress(username);
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); 
+      
+      let mailbox = await prisma.mailbox.findUnique({
+        where: { address }
+      });
+      
+      if (!mailbox) {
+        mailbox = await prisma.mailbox.create({
+          data: {
+            address,
+            expiresAt
+          }
+        });
+        
+        console.log('[CUSTOM MAILBOX CREATED]', {
+          username,
+          address: address,
+          expiresAt: expiresAt.toISOString(),
+          timestamp: new Date().toISOString()
+        });
+
+      } else {
+        
+        if (!mailbox.expiresAt) {
+          mailbox = await prisma.mailbox.update({
+            where: { id: mailbox.id },
+            data: { expiresAt }
+          });
+          console.log('[MAILBOX EXPIRY UPDATED]', {
+            address: address,
+            expiresAt: expiresAt.toISOString()
+          });
+        }
+        
+        console.log('[EXISTING MAILBOX ACCESSED]', {
+          username,
+          address: address,
+          timestamp: new Date().toISOString()
+        });
+
+      }
+      res.json({
+        address: mailbox.address,
+        createdAt: mailbox.createdAt,
+        expiresAt: mailbox.expiresAt
+      });
+    } catch (error) {
+      console.error('Error creating custom mailbox', error);
+      res.status(500).json({error: 'Failed to create mailbox'});
+    }
+  });
+
+  router.post('/mailboxes', createMailboxLimiter, async (req, res) => {
+    try {
+      const { address } = req.body ?? {}; 
+      if (!address)
+        return res.status(400).json({ error: 'address required' });
+
+      const norm = normalizeAddress(address);
+      if (!isOurDomain(norm))
+        return res.status(400).json({ error: 'wrong domain' });
+
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const mb = await prisma.mailbox.create({ data: { address: norm, expiresAt } });
+      res.json({ address: mb.address });
+    } catch (e) {
+      res.status(409).json({ error: 'address exists' });
+    }
+  });
+
+  router.post('/mailboxes/:address/messages', messageAccessLimiter, async(req, res) => {
+    try {
+      const addr = normalizeAddress(req.params.address);
+
+      let mb;
+      try {
+        mb = await prisma.mailbox.findUnique({
+          where: {address: addr},
+          include: {
+            messages: {
+              orderBy: {createdAt: 'desc'},
+              take: 50,
+              select: {
+                id: true,
+                from: true,
+                subject: true,
+                raw: true,
+                createdAt: true,
+              }
+            }
+          }
+        });
+      } catch (dbError) {
+        console.error('Database error when finding mailbox:', dbError);
+        return res.json({
+          address: addr,
+          createdAt: new Date().toISOString(),
+          expiresAt: null,
+          messageCount: 0,
+          messages: [],
+        });
+      }
+
+      if(!mb) {
+        try {
+          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+          mb = await prisma.mailbox.create({ 
+            data: { 
+              address: addr, 
+              expiresAt 
+            },
+            include: {
+              messages: {
+                orderBy: {createdAt: 'desc'},
+                take: 50,
+                select: {
+                  id: true,
+                  from: true,
+                  subject: true,
+                  raw: true,
+                  createdAt: true,
+                }
+              }
+            }
+          });
+          console.log('[MAILBOX AUTO-CREATED]', {
+            address: addr,
+            timestamp: new Date().toISOString()
+          });
+        } catch (createError) {
+          console.error('Error creating mailbox on the fly:', createError);
+          return res.json({
+            address: addr,
+            createdAt: new Date().toISOString(),
+            expiresAt: null,
+            messageCount: 0,
+            messages: [],
+          });
+        }
+      }
+
+      let messagesWithPreview: Array<{
+        id: string;
+        from: string;
+        subject: string;
+        preview: string;
+        createdAt: string;
+      }> = [];
+      try {
+        messagesWithPreview = await Promise.all(
+          (mb.messages || []).map(async (msg) => {
+            let preview = '';
+            try {
+              const { simpleParser } = await import('mailparser');
+              const parsed = await simpleParser(Buffer.from(msg.raw));
+              const textContent = parsed.text || (parsed.html ? parsed.html.replace(/<[^>]*>/g, '') : '') || '';
+              preview = textContent.substring(0, 150).trim();
+              if (textContent.length > 150) preview += '...';
+            } catch (e) {
+              preview = 'Unable to load preview';
+            }
+
+            return {
+              id: msg.id,
+              from: msg.from,
+              subject: msg.subject || '(No Subject)',
+              preview,
+              createdAt: msg.createdAt.toISOString(),
+            };
+          })
+        );
+      } catch (parseError) {
+        console.error('Error parsing messages:', parseError);
+        messagesWithPreview = [];
+      }
+
+      console.log('[MESSAGES ACCESSED]', {
+        address: addr,
+        messageCount: messagesWithPreview.length,
+        timestamp: new Date().toISOString(),
+        userAgent: req.headers['user-agent']?.slice(0, 50) || 'unknown'
+      });
+
+      res.json({
+        address: mb.address,
+        createdAt: mb.createdAt.toISOString(),
+        expiresAt: mb.expiresAt?.toISOString() || null,
+        messageCount: messagesWithPreview.length,
+        messages: messagesWithPreview,
+      });
+    } catch (error) {
+      console.error('Error fetching messages', error);
+      res.status(500).json({error: 'Failed to fetch messages'});
+    }
+  })
+
+  router.get('/messages/:id', messageAccessLimiter, async(req, res)=> {
+    try {
+      const msg = await prisma.message.findUnique({
+        where: {id: req.params.id},
+        include: {
+          mailbox: {select: {address: true}},
+        }
+      });
+
+      if(!msg) return res.status(404).json({error: 'not found'});
+
+      console.log('[MESSAGE ACCESSED]', {
+        id: msg.id,
+        mailbox: msg.mailbox.address
+      });
+
+      const { simpleParser } = await import('mailparser');
+      const parsed = await simpleParser(Buffer.from(msg.raw));
+
+      console.log('[EMAIL PARSED]', {
+        messageId: msg.id,
+        hasHtml: !!parsed.html,
+        htmlLength: parsed.html ? parsed.html.length : 0,
+        hasText: !!parsed.text,
+        textLength: parsed.text ? parsed.text.length : 0,
+        htmlPreview: parsed.html ? parsed.html.substring(0, 200) + '...' : 'No HTML'
+      });
+
+      let processedHtml = parsed.html || '';
+      if (processedHtml && parsed.attachments) {
+        const cidMap = new Map<string, number>();
+        parsed.attachments.forEach((att, idx) => {
+          if (att.contentId) {
+            const cleanCid = att.contentId.replace(/^<|>$/g, '');
+            cidMap.set(cleanCid, idx);
+          }
+        });
+
+        processedHtml = processedHtml.replace(/cid:([^"'\s)]+)/gi, (match, cid) => {
+          const idx = cidMap.get(cid);
+          if (idx !== undefined) {
+            return `/api/messages/${msg.id}/attachments/${idx}`;
+          }
+          return match;
+        });
+      }
+
+      res.json({
+        id: msg.id,
+        from: msg.from,
+        subject: msg.subject,
+        body: msg.raw,
+        createdAt: msg.createdAt.toISOString(),
+        mailbox: msg.mailbox.address,
+        parsedData: {
+          subject: parsed.subject || '',
+          from: parsed.from?.text || '',
+          text: parsed.text || '',
+          html: processedHtml,
+          textAsHtml: parsed.textAsHtml || '',
+          attachments: parsed.attachments?.map((att, idx) => ({
+            filename: att.filename || `attachment-${idx}`,
+            contentType: att.contentType,
+            size: att.size,
+            contentId: att.contentId,
+            index: idx,
+          })) || [],
+          date: (parsed.date || new Date(msg.createdAt)).toISOString(),
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching message', error);
+      res.status(500).json({error: 'Failed to fetch message'});
+    }
+  })
+
+  router.get('/messages/:id/attachments/:index', messageAccessLimiter, async(req, res) => {
+    try {
+      const msg = await prisma.message.findUnique({
+        where: {id: req.params.id},
+      });
+
+      if(!msg) return res.status(404).json({error: 'Message not found'});
+
+      const { simpleParser } = await import('mailparser');
+      const parsed = await simpleParser(Buffer.from(msg.raw));
+
+      const index = parseInt(req.params.index, 10);
+      if (isNaN(index) || !parsed.attachments || index < 0 || index >= parsed.attachments.length) {
+        return res.status(404).json({error: 'Attachment not found'});
+      }
+
+      const attachment = parsed.attachments[index];
+
+      if (attachment.contentType) {
+        res.setHeader('Content-Type', attachment.contentType);
+      }
+
+      if (attachment.filename && !attachment.contentId) {
+        res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
+      }
+
+      if (attachment.contentId) {
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+      }
+
+      res.send(attachment.content);
+    } catch (error) {
+      console.error('Error serving attachment', error);
+      res.status(500).json({error: 'Failed to serve attachment'});
+    }
+  });
+
+  app.use('/api', router);
+
+  return app;
+}

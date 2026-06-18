@@ -1,176 +1,369 @@
-# Temp-Mail Backend
+# 🔧 Temp Mail Backend
 
-The backend component of the Temp-Mail service, providing both an API server and an SMTP server for handling temporary email addresses.
+The backend component of the Temp Mail service, providing both an API server and an SMTP server for handling temporary email addresses.
 
-## Directory Structure
+## 🏗️ Architecture
+
+```
+Express.js API Server
+├── REST API Endpoints
+├── SMTP Email Server
+├── PostgreSQL + Prisma ORM
+├── Automatic Cleanup Service
+└── Rate Limiting & CORS
+```
+
+## 📁 Directory Structure
 
 ```
 backend/
 ├── dist/               # Compiled JavaScript files
-├── prisma/             # Prisma schema and migrations
+├── prisma/
+│   ├── migrations/     # Database migrations
+│   └── schema.prisma   # Database schema
 ├── src/
-│   ├── api/            # API routes and middleware
-│   ├── lib/            # Utility functions and shared code
-│   ├── services/       # Background services (cleanup, scheduler)
-│   ├── smtp/           # SMTP server configuration
-│   └── index.ts        # Main entry point
-├── .env                # Environment variables (not in git)
-├── .env.example        # Example environment variables
-├── package.json        # Dependencies and scripts
-└── tsconfig.json       # TypeScript configuration
+│   ├── api/
+│   │   ├── server.ts           # API routes
+│   │   └── middleware/
+│   │       └── rateLimit.ts    # Rate limiting
+│   ├── lib/
+│   │   ├── email.ts            # Email utilities
+│   │   ├── prisma.ts           # Database client
+│   │   └── posthog.ts          # Analytics
+│   ├── services/
+│   │   ├── cleanup.ts          # Email cleanup
+│   │   └── scheduler.ts        # Cron jobs
+│   ├── smtp/
+│   │   └── server.ts           # SMTP server
+│   └── index.ts                # Main entry point
+├── .env.example
+├── package.json
+└── tsconfig.json
 ```
 
-## Prerequisites
+## 🚀 Quick Start
 
-- Node.js (v18+)
-- PostgreSQL database
+### Prerequisites
+
+- Node.js 18+
+- PostgreSQL
 - pnpm (recommended) or npm
 
-## Installation
+### Installation
 
-1. Clone the repository and navigate to the backend directory:
-
-```bash
-cd backend
-```
-
-2. Install dependencies:
+1. **Install dependencies**
 
 ```bash
 pnpm install
 ```
 
-3. Set up environment variables:
+2. **Set up environment variables**
 
-Create a `.env` file in the backend directory with the following content:
+Create a `.env` file:
 
-```
+```env
 # Database
-DATABASE_URL=
+DATABASE_URL=postgresql://user:password@localhost:5432/tempmail
 
-# Frontend URL for CORS
-FRONTEND_URL=
-CORS_ORIGIN=
+# Domain Configuration
+SMTP_DOMAIN=temp.willx.tech
+MAIL_DOMAIN=temp.willx.tech
 
-# Backend Configuration
+# Server Configuration
 API_PORT=3001
 SMTP_PORT=25
 
-# SMTP Configuration
-SMTP_DOMAIN=
+# Cleanup Service
+CLEANUP_ENABLED=true
+CLEANUP_LEADER=true
+
+# CORS
+FRONTEND_URL=https://temp.willx.tech
+CORS_ORIGIN=https://temp.willx.tech
+
+# Analytics (Optional)
+POSTHOG_API_KEY=your_key
 
 # Environment
-NODE_ENV=production
+NODE_ENV=development
 ```
 
-4. Generate Prisma client:
+3. **Set up database**
 
 ```bash
+# Generate Prisma client
 pnpm prisma:generate
-```
 
-5. Run database migrations:
-
-```bash
+# Run migrations
 pnpm prisma:migrate
 ```
 
-## Running the Application
-
-### Development Mode
+4. **Start the server**
 
 ```bash
+# Development mode with hot reload
 pnpm dev
-```
 
-This will start both the API server and SMTP server in development mode with hot reloading.
-
-### Production Mode
-
-```bash
+# Production mode
 pnpm build
 pnpm start
 ```
 
-## API Endpoints
+## 🔌 API Endpoints
 
-### Mailboxes
+### Health Check
+```http
+GET /api/health
+Response: { "ok": true }
+```
 
-- `POST /api/mailboxes/custom` - Create a custom mailbox
-  - Request body: `{ "username": "example" }`
-  - Response: `{ "address": "example@domain.com", "createdAt": "ISO date", "expiresAt": "ISO date" }`
+### Create Custom Mailbox
+```http
+POST /api/mailboxes/custom
+Content-Type: application/json
 
-### Messages
+Request:
+{
+  "username": "john"
+}
 
-- `POST /api/mailboxes/:address/messages` - Get messages for a mailbox
-  - Response: `{ "messages": [{ "id": "...", "subject": "...", "from": "...", "createdAt": "..." }] }`
+Response:
+{
+  "address": "john@temp.willx.tech",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "expiresAt": "2024-01-02T00:00:00.000Z"
+}
+```
 
-- `GET /api/messages/:id` - Get a specific message
-  - Response: `{ "id": "...", "subject": "...", "from": "...", "to": "...", "content": "...", "parsedData": { ... } }`
+### Get Messages for Mailbox
+```http
+POST /api/mailboxes/:address/messages
+
+Response:
+{
+  "messages": [
+    {
+      "id": "msg_123",
+      "subject": "Welcome",
+      "from": "sender@example.com",
+      "preview": "Email preview...",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+### Get Specific Message
+```http
+GET /api/messages/:id
+
+Response:
+{
+  "id": "msg_123",
+  "subject": "Welcome",
+  "from": "sender@example.com",
+  "parsedData": {
+    "html": "<html>...</html>",
+    "text": "Plain text...",
+    "attachments": []
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z"
+}
+```
+
+## 🛡️ Security & Rate Limiting
+
+### Rate Limits
+
+| Endpoint | Limit | Window |
+|----------|-------|--------|
+| General API | 100 requests | 15 minutes |
+| Mailbox Creation | 5 requests | 15 minutes |
+| Message Access | 50 requests | 15 minutes |
+
+### CORS Configuration
+
+Allows requests from:
+- Production domain: `https://temp.willx.tech`
+- Local development: `http://localhost:3000`
+
+### IP Detection
+
+Supports multiple headers for accurate IP identification:
+- `X-Forwarded-For` (AWS, most proxies)
+- `CF-Connecting-IP` (Cloudflare)
+- `X-Real-IP` (Nginx)
+- Direct connection IP (fallback)
+
+## 📧 SMTP Server
+
+### Configuration
+
+- **Port**: 25 (configurable)
+- **Domain**: `temp.willx.tech`
+- **Authentication**: Disabled (open relay for configured domain only)
+
+### Email Processing
+
+1. Receives email via SMTP
+2. Validates recipient domain
+3. Parses email content (HTML, text, attachments)
+4. Stores in PostgreSQL as raw bytes
+5. Auto-creates mailbox if doesn't exist
+6. Sets 24-hour expiration
+
+### Accepted Domains
+
+Only accepts emails for: `@temp.willx.tech`
+
+## 🗄️ Database Schema
+
+### Mailbox Model
+```prisma
+model Mailbox {
+  id        String    @id @default(cuid())
+  address   String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+  messages  Message[]
+
+  @@index([expiresAt])
+}
+```
+
+### Message Model
+```prisma
+model Message {
+  id        String   @id @default(cuid())
+  mailbox   Mailbox  @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  mailboxId String
+  from      String
+  subject   String?
+  raw       Bytes
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+
+  @@index([expiresAt])
+}
+```
+
+## 🧹 Cleanup Service
+
+### Features
+
+- Automatic cleanup of expired emails and mailboxes
+- Runs every hour via cron job
+- Leader election for multi-instance deployments
+- Configurable via environment variables
+
+### Configuration
+
+```env
+CLEANUP_ENABLED=true     # Enable/disable cleanup
+CLEANUP_LEADER=true      # Mark instance as leader
+```
+
+## 📊 Analytics
+
+Optional PostHog integration for tracking:
+- Email received events
+- Message access events
+- Mailbox creation events
+- SMTP errors and issues
+
+## 🛠️ Development
+
+### Scripts
+
+```bash
+# Development
+pnpm dev              # Start with hot reload
+
+# Production
+pnpm build            # Compile TypeScript
+pnpm start            # Start production server
+
+# Database
+pnpm prisma:generate  # Generate Prisma client
+pnpm prisma:migrate   # Run migrations
+pnpm prisma:studio    # Open Prisma Studio
+
+# Testing
+pnpm test             # Run tests (if configured)
+```
+
+### Hot Reload
+
+Uses `tsx watch` for instant TypeScript reloading during development.
+
+## 📦 Dependencies
+
+### Core
+- `express` - Web framework
+- `cors` - CORS middleware
+- `smtp-server` - SMTP server
+- `mailparser` - Email parsing
+
+### Database
+- `@prisma/client` - Prisma ORM
+- `prisma` - Prisma CLI
+
+### Utilities
+- `nanoid` - ID generation
+- `node-cron` - Scheduled tasks
+- `express-rate-limit` - Rate limiting
+- `posthog-node` - Analytics
+
+### Development
+- `tsx` - TypeScript execution
+- `typescript` - TypeScript compiler
+- `@types/*` - Type definitions
+
+## 🚀 Deployment
+
+### Production Checklist
+
+- [ ] Set `NODE_ENV=production`
+- [ ] Configure PostgreSQL connection
+- [ ] Set up DNS for SMTP domain
+- [ ] Configure MX records
+- [ ] Open port 25 for SMTP
+- [ ] Set up SSL/TLS certificates
+- [ ] Configure environment variables
+- [ ] Enable cleanup service
+- [ ] Set up monitoring
+
+### Recommended Platforms
+
+- **VPS**: DigitalOcean, AWS EC2, Linode
+- **Container**: Docker, Kubernetes
+- **PaaS**: Railway, Render (Note: May need port 25 support)
+
+## 🔍 Monitoring
 
 ### Health Check
 
-- `GET /api/health` - Check if the API is running
-  - Response: `{ "ok": true }`
+```bash
+curl https://api.willx.tech/api/health
+```
 
-## Enhanced Error Handling
+### Logs
 
-The backend implements several error handling strategies:
+Structured logging with context:
+```
+[SMTP] Email received: user@temp.willx.tech
+[API] Mailbox created: user@temp.willx.tech
+[CLEANUP] Removed 42 expired messages
+```
 
-1. **Database Error Recovery**:
-   - Graceful handling of database connection issues
-   - Automatic retry mechanisms for transient errors
-   - Fallback responses when database operations fail
+## 🤝 Contributing
 
-2. **Auto-Creation of Resources**:
-   - Mailboxes are automatically created if they don't exist
-   - This prevents 404 errors when accessing new mailboxes
+See main [README.md](../README.md) for contribution guidelines.
 
-3. **Error Logging and Monitoring**:
-   - Detailed error logging with context information
-   - Structured logging for easier debugging
-   - Tracking of error patterns and frequencies
+## 📝 License
 
-4. **Graceful Degradation**:
-   - Returns empty arrays instead of errors when possible
-   - Maintains service availability during partial outages
+MIT License - see [LICENSE](../LICENSE) for details.
 
-## Services
+---
 
-### Cleanup Service
-
-Automatically removes emails and mailboxes that are older than 24 hours to maintain system performance and privacy.
-
-### SMTP Server
-
-Listens for incoming emails on the configured port and stores them in the database, associating them with the appropriate mailbox.
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| DATABASE_URL | PostgreSQL connection string | - |
-| FRONTEND_URL | URL of the frontend application | - |
-| CORS_ORIGIN | Allowed origin for CORS | - |
-| API_PORT | Port for the API server | 3001 |
-| SMTP_PORT | Port for the SMTP server | 25 |
-| SMTP_DOMAIN | Domain for the SMTP server | - |
-| NODE_ENV | Environment (development/production) | production |
-
-## Scripts
-
-- `pnpm dev` - Start the development server with hot reloading
-- `pnpm build` - Build the TypeScript code
-- `pnpm start` - Start the production server
-- `pnpm prisma:generate` - Generate Prisma client
-- `pnpm prisma:migrate` - Run database migrations
-
-## Dependencies
-
-- Express.js - Web framework
-- smtp-server - SMTP server implementation
-- Prisma - ORM for database operations
-- mailparser - Email parsing
-- node-cron - Scheduled tasks
-- nanoid - ID generation
-- cors - CORS middleware
+Made with ❤️ by [WilliamBenLaw](https://github.com/SheerWill007)

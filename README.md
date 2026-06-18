@@ -1,204 +1,362 @@
-# Temp-Mail
+# Temp Mail - Modern Temporary Email Service
 
-A temporary email service with a modern UI that allows users to create disposable email addresses and receive emails without registration.
+A sleek, modern temporary email service with smooth animations and a premium user experience. Built with Next.js 15, TypeScript, GSAP, and PostgreSQL.
 
-![Temp-Mail Screenshot](./frontend/public/temp-mail-image.png)
+![Temp Mail](./frontend/public/temp-mail-image.png)
 
-## Project Structure
+[Live Demo](https://temp.willx.tech) | [Report Bug](https://github.com/SheerWill007/temp-mail/issues) | [Request Feature](https://github.com/SheerWill007/temp-mail/issues)
 
-The project consists of two main parts:
+---
 
-### Frontend
+## Features
 
-- Built with Next.js 15
-- Uses React with TypeScript
-- Styled with Tailwind CSS
-- Fully responsive design for mobile, tablet, and desktop
-- Located in the `/frontend` directory
+- **Instant Email Creation** - Generate temporary email addresses without registration
+- **Modern UI** - Borderless design with floating cards and smooth animations
+- **Smooth Scrolling** - Lenis-powered smooth page transitions
+- **GSAP Animations** - Interactive floating cards with mouse parallax effects
+- **Dark/Light Mode** - Theme switching with custom color palette
+- **Fully Responsive** - Optimized for mobile, tablet, and desktop
+- **Real-time Updates** - Auto-refresh mailbox with smart polling
+- **Privacy First** - Emails auto-delete after 24 hours
+- **Production Ready** - Robust error handling and rate limiting
 
-### Backend
+---
 
-- Node.js with Express
-- TypeScript
-- SMTP server for receiving emails
-- PostgreSQL database with Prisma ORM
-- Robust error handling and recovery
-- Located in the `/backend` directory
+## Design Philosophy
 
-## Getting Started
+Built with a glassmorphism-inspired aesthetic featuring:
+
+- **Borderless Cards** - Clean shadows instead of borders
+- **Floating Animations** - GSAP-powered 3D card effects
+- **Custom Color Palette** - Carefully crafted black/white/gray theme
+- **Smooth Interactions** - 60fps animations throughout
+
+### Color Palette
+
+| Color | Hex | Usage |
+|-------|-----|-------|
+| Pixel White | `#DBDBDB` | Light background |
+| Existential Angst | `#0A0A0A` | Dark background |
+| Dark Summoning | `#373839` | Primary elements |
+| Million Grey | `#999999` | Secondary elements |
+| Kettleman | `#5F6062` | Muted text |
+| Inkwell Inception | `#1F1F20` | Dark mode cards |
+
+---
+
+## Architecture
+
+### Frontend Stack
+
+```
+Next.js 15 (App Router)
+├── React 19
+├── TypeScript
+├── Tailwind CSS 4
+├── GSAP (Animations)
+├── Lenis (Smooth Scroll)
+└── Radix UI (Components)
+```
+
+### Backend Stack
+
+```
+Node.js + Express
+├── TypeScript
+├── Prisma ORM
+├── PostgreSQL
+├── SMTP Server
+└── Node Cron (Cleanup)
+```
+
+---
+
+## Quick Start
 
 ### Prerequisites
 
-- Node.js (v18+)
+- Node.js 18+
 - PostgreSQL
 - pnpm (recommended) or npm
 
-### Backend Setup
+### Installation
 
-1. Navigate to the backend directory:
+1. Clone the repository
+
+```bash
+git clone https://github.com/SheerWill007/temp-mail.git
+cd temp-mail
+```
+
+2. Backend Setup
 
 ```bash
 cd backend
-```
-
-2. Install dependencies:
-
-```bash
 pnpm install
-```
 
-3. Set up environment variables:
+# Create .env file
+cp .env.example .env
 
-Create a `.env` file in the backend directory with the following content:
-
-```
-# Database
-DATABASE_URL=
-
-# Frontend URL for CORS
-FRONTEND_URL=
-CORS_ORIGIN=
-
-# Backend Configuration
+# Configure your .env
+DATABASE_URL=postgresql://user:password@localhost:5432/tempmail
+SMTP_DOMAIN=temp.willx.tech
 API_PORT=3001
-SMTP_PORT=25
 
-# SMTP Configuration
-SMTP_DOMAIN=
+# Run migrations
+pnpm prisma:migrate
+pnpm prisma:generate
 
-# Environment
-NODE_ENV=production
-```
-
-4. Run database migrations:
-
-```bash
-pnpm prisma migrate dev
-```
-
-5. Start the backend server:
-
-```bash
-# Development mode
+# Start backend
 pnpm dev
-
-# Production mode
-pnpm build
-pnpm start
 ```
 
-### Frontend Setup
-
-1. Navigate to the frontend directory:
+3. Frontend Setup
 
 ```bash
 cd frontend
-```
-
-2. Install dependencies:
-
-```bash
 pnpm install
+
+# Install animation libraries
+pnpm add gsap lenis
+
+# Create .env.local
+NEXT_PUBLIC_API_BASE=http://localhost:3001
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Start frontend
+pnpm dev
 ```
 
-3. Set up environment variables:
+4. Open your browser
 
-Create a `.env` file in the frontend directory with the following content:
+Navigate to [http://localhost:3000](http://localhost:3000)
+
+---
+
+## Project Structure
 
 ```
-NEXT_PUBLIC_API_BASE=
+temp-mail/
+├── backend/
+│   ├── prisma/
+│   │   ├── migrations/         # Database migrations
+│   │   └── schema.prisma       # Database schema
+│   ├── src/
+│   │   ├── api/
+│   │   │   ├── server.ts       # API routes
+│   │   │   └── middleware/     # Rate limiting, CORS
+│   │   ├── smtp/
+│   │   │   └── server.ts       # SMTP server
+│   │   ├── services/
+│   │   │   ├── cleanup.ts      # Email cleanup
+│   │   │   └── scheduler.ts    # Cron jobs
+│   │   ├── lib/
+│   │   │   ├── email.ts        # Email utilities
+│   │   │   ├── prisma.ts       # Database client
+│   │   │   └── posthog.ts      # Analytics
+│   │   └── index.ts            # Entry point
+│   ├── package.json
+│   └── tsconfig.json
+│
+└── frontend/
+    ├── app/
+    │   ├── layout.tsx          # Root layout
+    │   ├── page.tsx            # Homepage
+    │   └── mailbox/            # Mailbox pages
+    ├── components/
+    │   ├── FloatingCard.tsx    # GSAP animated card
+    │   ├── SmoothScrollProvider.tsx
+    │   ├── layout/
+    │   │   ├── Header.tsx
+    │   │   ├── Footer.tsx
+    │   │   └── BorderDecoration.tsx
+    │   └── ui/                 # Radix UI components
+    ├── lib/
+    │   ├── api.ts              # API client
+    │   └── utils.ts            # Utilities
+    ├── styles/
+    │   └── globals.css         # Global styles
+    ├── package.json
+    └── tsconfig.json
 ```
 
-4. Start the frontend development server:
+---
+
+## API Endpoints
+
+### Health Check
+```http
+GET /api/health
+```
+
+### Create Mailbox
+```http
+POST /api/mailboxes/custom
+Content-Type: application/json
+
+{
+  "username": "john"
+}
+```
+
+### Get Messages
+```http
+POST /api/mailboxes/:address/messages
+```
+
+### Get Message
+```http
+GET /api/messages/:id
+```
+
+---
+
+## Configuration
+
+### Environment Variables
+
+#### Backend (.env)
+```env
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/tempmail
+
+# Domain Configuration
+SMTP_DOMAIN=temp.willx.tech
+MAIL_DOMAIN=temp.willx.tech
+
+# Server Ports
+API_PORT=3001
+SMTP_PORT=25
+
+# Cleanup Service
+CLEANUP_ENABLED=true
+CLEANUP_LEADER=true
+
+# CORS
+FRONTEND_URL=https://temp.willx.tech
+
+# Analytics (Optional)
+POSTHOG_API_KEY=your_key
+```
+
+#### Frontend (.env.local)
+```env
+# API Configuration
+NEXT_PUBLIC_API_BASE=http://localhost:3001
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Analytics (Optional)
+NEXT_PUBLIC_POSTHOG_KEY=your_key
+NEXT_PUBLIC_POSTHOG_HOST=https://app.posthog.com
+```
+
+---
+
+## Animation Features
+
+### Floating Card Animation
+- Entrance Animation: Smooth fade-in with scale and translation
+- Floating Loop: Continuous y-axis oscillation (sine wave)
+- Mouse Parallax: 3D rotation following mouse position
+- Auto-Return: Smoothly returns to neutral position on mouse leave
+
+### Smooth Scrolling
+- Lenis Integration: Hardware-accelerated smooth scrolling
+- Custom Configuration: `lerp: 0.08` for natural feel
+- Wheel Multiplier: Optimized for different devices
+
+---
+
+## Security Features
+
+### Rate Limiting
+- Mailbox Creation: 5 requests / 15 minutes
+- Message Access: 50 requests / 15 minutes
+- General API: 100 requests / 15 minutes
+
+### Privacy
+- 24-Hour Expiration: All emails auto-delete
+- No Registration: Complete anonymity
+- No Tracking: Privacy-first approach
+
+---
+
+## Performance
+
+- 60 FPS Animations: Hardware-accelerated GSAP
+- Optimized Rendering: React 19 with automatic batching
+- Smart Caching: Request deduplication
+- Lazy Loading: On-demand component loading
+- Database Indexing: Optimized queries with Prisma
+
+---
+
+## Responsive Design
+
+| Breakpoint | Device | Layout |
+|------------|--------|--------|
+| < 768px | Mobile | Stacked, touch-optimized |
+| 768px - 1024px | Tablet | Hybrid layout |
+| > 1024px | Desktop | Full-featured with Screen component |
+
+---
+
+## Deployment
+
+### Backend (Node.js Server)
 
 ```bash
-# Development mode
-pnpm dev
-
-# Production mode
+# Build
+cd backend
 pnpm build
+
+# Start production server
 pnpm start
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
+Recommended Platforms:
+- AWS EC2
+- DigitalOcean Droplet
+- Heroku
+- Railway
 
-## Backend Architecture
+### Frontend (Vercel)
 
-The backend is built with Node.js and Express, providing both an API server and an SMTP server for receiving emails.
+```bash
+# Build
+cd frontend
+pnpm build
 
-### Key Components
+# Deploy to Vercel
+vercel --prod
+```
 
-- **API Server**: Handles HTTP requests for creating mailboxes and retrieving messages
-- **SMTP Server**: Receives incoming emails and stores them in the database
-- **Database**: PostgreSQL with Prisma ORM for data storage and retrieval
-- **Auto-Creation**: Automatically creates mailboxes when needed for resilience
-- **Cleanup Service**: Automatically removes expired emails after 24 hours
-- **Health Check**: Endpoint to verify backend server status
-- **Rate Limiting**: Intelligent rate limiting that works in production environments with proxies
+Recommended Platforms:
+- Vercel (Recommended)
+- Netlify
+- AWS Amplify
 
-### Rate Limiting
+### DNS Configuration
 
-The backend implements different rate limits based on endpoint sensitivity:
+```
+# A Record
+temp.willx.tech → Your Server IP
 
-- **Mailbox Creation**: 5 requests per 5 minutes
-- **Message Access**: 30 requests per 1 minute
-- **General API Access**: 100 requests per 15 minutes
+# MX Record
+temp.willx.tech → Mail Server
+Priority: 10
+```
 
-Rate limiting is proxy-aware and correctly identifies client IPs using:
-- X-Forwarded-For header (common in AWS and other cloud providers)
-- CF-Connecting-IP header (used by Cloudflare)
-- X-Real-IP header (used by various proxies)
-- Direct IP as fallback
+### SSL Certificate
 
-### API Endpoints
+```bash
+# Using certbot
+certbot --nginx -d temp.willx.tech
+```
 
-- `GET /api/health` - Health check endpoint
-- `POST /api/mailboxes/custom` - Create a custom mailbox
-- `POST /api/mailboxes/:address/messages` - Get messages for a mailbox
-- `GET /api/messages/:id` - Get a specific message
+---
 
-### Database Schema
-
-The database uses Prisma ORM with the following main models:
-
-- `Mailbox`: Represents a temporary email address
-- `Message`: Stores received emails with their content and metadata
-
-## Frontend Architecture
-
-The frontend is built with Next.js 15 and React, providing a responsive and modern user interface.
-
-### Key Components
-
-- **Home Page**: Allows users to create custom email addresses
-- **Mailbox Page**: Displays received emails with auto-refresh functionality
-- **Message Detail Page**: Shows the full content of an email with HTML support
-
-### Technologies Used
-
-- **Next.js**: React framework with App Router
-- **React**: UI library for building components
-- **TypeScript**: Type-safe JavaScript
-- **Tailwind CSS**: Utility-first CSS framework
-- **Sonner**: Toast notifications
-
-### State Management
-
-- React hooks for local state management
-- Smart polling with exponential backoff for API requests
-- Cache-busting for fresh data
-- Error resilience with graceful degradation
-
-### Responsive Design
-
-- Mobile-first approach with adaptive layouts
-- Optimized viewing experience on all device sizes
-- Touch-friendly interface elements
-- Responsive typography and spacing
-
-## Development
-
-### Running Tests
+## Testing
 
 ```bash
 # Backend tests
@@ -210,53 +368,43 @@ cd frontend
 pnpm test
 ```
 
-### Building for Production
+---
 
-```bash
-# Build backend
-cd backend
-pnpm build
+## Contributing
 
-# Build frontend
-cd frontend
-pnpm build
-```
+Contributions are welcome. Please feel free to submit a pull request.
 
-## Deployment
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a pull request
 
-### Backend Deployment
+---
 
-The backend can be deployed to any Node.js hosting service:
+## License
 
-1. Set up the environment variables as described above
-2. Build the project: `pnpm build`
-3. Start the server: `pnpm start`
+This project is open source and available under the [MIT License](LICENSE).
 
-### Frontend Deployment
+---
 
-The frontend can be deployed to Vercel or any static hosting service:
+## Author
 
-1. Set up the environment variables as described above
-2. Build the project: `pnpm build`
-3. Deploy the `.next` folder
+WilliamBenLaw
 
-## Recent Improvements
+- GitHub: [@SheerWill007](https://github.com/SheerWill007)
+- Website: [willx.tech](https://willx.tech)
 
-### Backend Enhancements
+---
 
-- Re-implemented production-ready rate limiting that works with proxies and load balancers
-- Improved IP detection to handle X-Forwarded-For, CF-Connecting-IP, and X-Real-IP headers
-- Added robust error handling and auto-recovery mechanisms
-- Implemented automatic mailbox creation for resilience
-- Enhanced database connection error handling
-- Improved logging for better debugging and monitoring
+## Acknowledgments
 
-### Frontend Enhancements
+- [GSAP](https://greensock.com/gsap/) - Animation library
+- [Lenis](https://github.com/studio-freight/lenis) - Smooth scrolling
+- [Next.js](https://nextjs.org/) - React framework
+- [Radix UI](https://www.radix-ui.com/) - UI components
+- [Tailwind CSS](https://tailwindcss.com/) - CSS framework
 
-- Implemented fully responsive design for all screen sizes
-- Enhanced error handling with graceful degradation
-- Added cache-busting for reliable data fetching
-- Improved UI with consistent button sizing and styling
-- Optimized email content display for mobile devices
-- Fixed scrolling issues for long email content
-- Enhanced visual feedback during loading states
+---
+
+[Back to top](#temp-mail---modern-temporary-email-service)

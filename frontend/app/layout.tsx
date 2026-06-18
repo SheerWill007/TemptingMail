@@ -1,26 +1,9 @@
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { PostHogProvider } from "@/components/PostHogProvider"
 import { Toaster } from "@/components/ui/sonner"
 import SmoothScrollProvider from "@/components/SmoothScrollProvider"
 import "./globals.css"
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-})
-
-const headlineFont = {
-  variable: "--font-headline",
-  className: "",
-}
-
-const featuresFont = {
-  variable: "--font-features",
-  className: "",
-}
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://temp.willx.tech'),
@@ -56,11 +39,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${headlineFont.variable} ${featuresFont.variable} ${inter.variable} antialiased`}>
+    <html lang="en" suppressHydrationWarning className="antialiased">
       <head>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </head>
-      <body className={`font-sans ${inter.variable}`}>
+      <body className="font-mono">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

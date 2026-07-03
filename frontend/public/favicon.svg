@@ -1,10 +1,4 @@
-<svg width="32" height="32" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <path
-    d="M20 15 C15 15, 10 20, 10 25 L10 35 C10 40, 15 45, 20 45 L25 45 L25 75 C25 80, 30 85, 35 85 L40 85 C45 85, 50 80, 50 75 L50 45 L55 45 C60 45, 65 40, 65 35 L65 25 C65 20, 60 15, 55 15 Z"
-    fill="white"
-    stroke="white"
-    strokeWidth="6"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  />
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="none"/>
+  <path d="M448 128L256 256L64 128M64 128V384C64 401.673 78.3269 416 96 416H416C433.673 416 448 401.673 448 384V128M64 128L96 96H416L448 128" stroke="white" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>

@@ -37,7 +37,7 @@ export class CleanupScheduler {
 
   private scheduleNext(baseMs: number) {
     if (!this.running) return;
-    const jitterFactor = 1 + (Math.random() * 2 * JITTER_PCT - JITTER_PCT); 
+    const jitterFactor = 1 + (Math.random() * 2 * JITTER_PCT - JITTER_PCT);
     const delay = Math.max(60_000, Math.round(baseMs * jitterFactor));
     this.timer = setTimeout(() => this.tick(), delay);
   }

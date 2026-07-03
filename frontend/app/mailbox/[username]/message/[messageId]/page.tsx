@@ -2,20 +2,16 @@
 
 import { useParams } from "next/navigation"
 import { useState, useEffect, useMemo } from "react"
-import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
-import { Screen } from "@/components/screen"
-import { Header, Footer, BorderDecoration } from "@/components/layout"
+import { Header, Footer } from "@/components/layout"
 import { fetchMessage } from "@/lib/api"
 import { sanitizeEmailHtml } from "@/lib/sanitize-html"
 import { trackEvent } from "@/lib/posthog"
 
 export default function MessagePage() {
   const params = useParams()
-  const router = useRouter()
   const messageId = params.messageId as string
   const username = params.username as string
 
@@ -25,13 +21,11 @@ export default function MessagePage() {
   const sanitizedHtml = useMemo(() => {
     if (!message?.parsedData?.html) {
       return message?.parsedData?.text
-        ? `<p>${message.parsedData.text}</p>`
-        : message?.preview
-        ? `<p>${message.preview}</p>`
-        : '<p>No content available</p>';
+        ? `<p>${message.parsedData.text.replace(/\n/g, '<br>')}</p>`
+        : '<p>No content available</p>'
     }
-    return sanitizeEmailHtml(message.parsedData.html);
-  }, [message]);
+    return sanitizeEmailHtml(message.parsedData.html)
+  }, [message])
 
   useEffect(() => {
     const loadMessage = async () => {
@@ -41,214 +35,117 @@ export default function MessagePage() {
         setMessage(messageData)
 
         trackEvent('message_opened', {
-          username: username,
+          username,
           message_id: messageId,
           subject: messageData.subject,
-          from: messageData.from,
-          has_html: !!messageData.parsedData?.html,
-          has_text: !!messageData.parsedData?.text
         })
       } catch (error) {
-        const err = error as Error;
-        trackEvent('message_open_failed', {
-          username: username,
-          message_id: messageId,
-          error: err.message
-        })
-
-        console.error('Failed to load message from API:', error)
-
-        toast.error("Failed to load email message. Please try again later.", {
-          duration: 5000,
-        })
+        console.error('Failed to load message:', error)
+        toast.error("Failed to load message")
       } finally {
         setLoading(false)
       }
     }
 
     loadMessage()
-  }, [messageId, params.username])
-
+  }, [messageId, username])
 
   if (loading) {
     return (
-      <div
-        className="min-h-screen bg-background relative overflow-y-auto"
-      >
-        <BorderDecoration />
-
-        {/* Mobile loading */}
-        <div className="md:hidden">
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-muted-foreground text-lg">
-                Loading message...
-              </p>
-            </div>
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-3">
+            <div className="w-12 h-12 mx-auto border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            <p className="text-white/60">Loading message...</p>
           </div>
-        </div>
-
-        {/* Desktop loading */}
-        <div className="hidden md:block">
-          <Screen>
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto"></div>
-                <p className="mt-4 text-muted-foreground text-lg">
-                  Loading message...
-                </p>
-              </div>
-            </div>
-          </Screen>
-        </div>
+        </main>
       </div>
     )
   }
 
   if (!message) {
     return (
-      <div
-        className="min-h-screen bg-gray-100 dark:bg-[#0D0E0E] relative overflow-y-auto"
-      >
-        <div className="md:hidden">
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center">
-              <p className="text-gray-500 dark:text-gray-400 text-lg">Message not found</p>
-              <Link href="/">
-                <Button className="mt-6">Go Home</Button>
-              </Link>
-            </div>
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <p className="text-xl text-white">Message not found</p>
+            <Link
+              href={`/mailbox/${username}`}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-all"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Mailbox
+            </Link>
           </div>
-        </div>
-
-        <div className="hidden md:block">
-          <Screen>
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <p className="text-gray-500 dark:text-gray-400 text-lg">Message not found</p>
-                <Link href="/">
-                  <Button className="mt-6">Go Home</Button>
-                </Link>
-              </div>
-            </div>
-          </Screen>
-        </div>
+        </main>
       </div>
     )
   }
 
   return (
-    <div
-      className="min-h-screen bg-background relative overflow-y-auto"
-    >
-      <BorderDecoration />
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      
+      <main className="flex-1 pt-24 pb-16 px-4">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Back Button */}
+          <Link 
+            href={`/mailbox/${username}`}
+            className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Mailbox</span>
+          </Link>
 
-      <div className="md:hidden flex flex-col">
-        <Header />
-
-        <main className="flex-1 bg-background">
-          <div className="max-w-4xl mx-auto px-3 py-6 sm:px-6">
-            <div className="flex items-center gap-4 mb-6">
-              <Link href={`/mailbox/${username}`}>
-                <Button variant="outline" size="sm">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Mailbox
-                </Button>
-              </Link>
-            </div>
-
-            <div
-              className="rounded-2xl overflow-hidden bg-card shadow-xl"
-            >
-              <div className="p-6">
-                <h1 className="text-2xl font-bold mb-2 text-foreground">
-                  {message.subject}
-                </h1>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {message.createdAt ? new Date(message.createdAt).toLocaleDateString('en-US', {
-                    month: 'numeric',
-                    day: 'numeric',
-                    year: 'numeric'
-                  }) : message.time}
-                </p>
-                <div className="mb-4">
-                  <p className="text-sm text-muted-foreground mb-1">
-                    <span className="font-medium">From:</span> {message.from}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-medium">To:</span> {`<${username}@temp.willx.tech>`}
-                  </p>
+          {/* Message Content */}
+          <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl overflow-hidden">
+            {/* Header */}
+            <div className="p-6 md:p-8 border-b border-white/10 space-y-4">
+              <h1 className="text-2xl md:text-3xl font-bold text-white">
+                {message.subject || "(No Subject)"}
+              </h1>
+              
+              <div className="space-y-2 text-sm">
+                <div className="flex items-start gap-2">
+                  <span className="text-white/50 min-w-[60px]">From:</span>
+                  <span className="text-white/80">{message.from}</span>
                 </div>
-                
-                <div className="mt-6 p-4 bg-background/50 rounded-xl overflow-auto max-h-[60vh]">
-                  <div className="text-sm text-gray-600 dark:text-gray-400 prose max-w-none dark:prose-invert"
-                       style={{ maxWidth: '100%', wordBreak: 'break-word' }}
-                       dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
-                  />
+                <div className="flex items-start gap-2">
+                  <span className="text-white/50 min-w-[60px]">To:</span>
+                  <span className="text-white/80">{username}@temp.willx.tech</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-white/50 min-w-[60px]">Date:</span>
+                  <span className="text-white/80">
+                    {message.createdAt 
+                      ? new Date(message.createdAt).toLocaleString()
+                      : 'Unknown'
+                    }
+                  </span>
                 </div>
               </div>
+            </div>
 
+            {/* Body */}
+            <div className="p-6 md:p-8">
+              <div 
+                className="prose prose-sm md:prose-base max-w-none
+                  prose-headings:text-white 
+                  prose-p:text-white/80 
+                  prose-a:text-white hover:prose-a:text-white/80
+                  prose-strong:text-white
+                  prose-code:text-white
+                  prose-pre:bg-white/10 prose-pre:border prose-pre:border-white/20"
+                dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+              />
             </div>
           </div>
-        </main>
+        </div>
+      </main>
 
-        <Footer />
-      </div>
-
-      <div className="hidden md:block">
-        <Screen>
-          <Header />
-
-          <main className="flex-1 bg-background">
-            <div className="max-w-4xl mx-auto px-3 py-6 sm:px-6">
-              <div className="flex items-center gap-4 mb-6">
-                <Link href={`/mailbox/${username}`}>
-                  <Button variant="outline" size="sm">
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Mailbox
-                  </Button>
-                </Link>
-              </div>
-
-              <div
-                className="rounded-2xl overflow-hidden bg-card shadow-xl"
-              >
-                <div className="p-6">
-                  <h1 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">
-                    {message.subject}
-                  </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    {message.createdAt ? new Date(message.createdAt).toLocaleDateString('en-US', {
-                      month: 'numeric',
-                      day: 'numeric',
-                      year: 'numeric'
-                    }) : message.time}
-                  </p>
-                  <div className="mb-4">
-                    <p className="text-sm text-muted-foreground mb-1">
-                      <span className="font-medium">From:</span> {message.from}
-                    </p>
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-medium">To:</span> {`<${username}@temp.willx.tech>`}
-                  </p>
-                  </div>
-                  
-                  <div className="mt-6 p-4 bg-background/50 rounded-xl overflow-x-auto">
-                    <div className="text-sm text-muted-foreground prose max-w-none dark:prose-invert"
-                         style={{ maxWidth: '100%', wordBreak: 'break-word' }}
-                         dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
-                    />
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </main>
-
-          <Footer />
-        </Screen>
-      </div>
+      <Footer />
     </div>
   )
 }

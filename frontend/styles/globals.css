@@ -77,8 +77,8 @@
 }
 
 @theme inline {
-  --font-sans: "Geist Mono", "Geist Mono Fallback", ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, Monaco, "Liberation Mono", "DejaVu Sans Mono", "Courier New", monospace;
-  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, Monaco, "Liberation Mono", "DejaVu Sans Mono", "Courier New", monospace;
+  --font-sans: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -123,7 +123,15 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: "Geist Mono", "Geist Mono Fallback", ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, Monaco, "Liberation Mono", "DejaVu Sans Mono", "Courier New", monospace;
+    font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    font-style: italic;
+    font-size: 60px;
+    line-height: 54px;
+    background-image: url('/Temp-mail BG.webp');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
   }
 }
 

@@ -12,7 +12,7 @@ export function Footer() {
             <span className="text-red-400">♥</span>
             <span>by</span>
             <a
-              href="https://github.com/SheerWill007"
+              href="https://github.com/SheerWill007/TemptingMail"
               target="_blank"
               rel="noopener noreferrer"
               className="text-white hover:text-white/80 transition-colors font-medium"
@@ -23,7 +23,7 @@ export function Footer() {
 
           {/* Center - Star button */}
           <a
-            href="https://github.com/SheerWill007/Temp-Mail"
+            href="https://github.com/SheerWill007/TemptingMail"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/20 transition-all font-medium text-white"
@@ -35,7 +35,7 @@ export function Footer() {
           {/* Right - Social links */}
           <div className="flex items-center gap-3">
             <a
-              href="https://github.com/SheerWill007"
+              href="https://github.com/SheerWill007/TemptingMail"
               target="_blank"
               rel="noopener noreferrer"
               className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all"
@@ -44,7 +44,7 @@ export function Footer() {
               <Github className="w-5 h-5 text-white" />
             </a>
             <a
-              href="https://linkedin.com/in/williambenjaminlaw"
+              href="https://www.linkedin.com/in/willxtech"
               target="_blank"
               rel="noopener noreferrer"
               className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all"

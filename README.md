@@ -1,50 +1,54 @@
-# Temp Mail - Modern Temporary Email Service
+# 📧 Temp Mail - Modern Temporary Email Service
 
-A sleek, modern temporary email service with smooth animations and a premium user experience. Built with Next.js 15, TypeScript, GSAP, and PostgreSQL.
+A sleek, modern temporary email service with smooth animations and a premium user experience. Built with Next.js 15, TypeScript, GSAP, and a custom SMTP server powered by Node.js.
 
-![Temp Mail](./frontend/public/temp-mail-image.png)
+![Temp Mail](./frontend/public/PBX1.png)
 
 [Live Demo](https://temp.willx.tech) | [Report Bug](https://github.com/SheerWill007/temp-mail/issues) | [Request Feature](https://github.com/SheerWill007/temp-mail/issues)
 
 ---
 
-## Features
+## ✨ Features
 
 - **Instant Email Creation** - Generate temporary email addresses without registration
-- **Modern UI** - Borderless design with floating cards and smooth animations
+- **Custom Usernames** - Create personalized temporary email addresses
+- **Modern UI** - Glassmorphism-inspired design with floating cards and smooth animations
 - **Smooth Scrolling** - Lenis-powered smooth page transitions
 - **GSAP Animations** - Interactive floating cards with mouse parallax effects
-- **Dark/Light Mode** - Theme switching with custom color palette
 - **Fully Responsive** - Optimized for mobile, tablet, and desktop
+- **Real SMTP Server** - Fully functional mail server that receives actual emails
 - **Real-time Updates** - Auto-refresh mailbox with smart polling
-- **Privacy First** - Emails auto-delete after 24 hours
-- **Production Ready** - Robust error handling and rate limiting
+- **Privacy First** - Emails auto-delete after 24 hours, no registration required
+- **HTML Email Support** - View rich HTML emails with inline images and attachments
+- **Production Ready** - Robust error handling, rate limiting, and security features
 
 ---
 
-## Design Philosophy
+## 🎨 Design Philosophy
 
 Built with a glassmorphism-inspired aesthetic featuring:
 
 - **Borderless Cards** - Clean shadows instead of borders
 - **Floating Animations** - GSAP-powered 3D card effects
-- **Custom Color Palette** - Carefully crafted black/white/gray theme
+- **Custom Color Palette** - Carefully crafted warm desert-inspired theme
 - **Smooth Interactions** - 60fps animations throughout
+- **Visual Hierarchy** - Clear focus with animated UI elements
 
 ### Color Palette
 
 | Color | Hex | Usage |
 |-------|-----|-------|
-| Pixel White | `#DBDBDB` | Light background |
-| Existential Angst | `#0A0A0A` | Dark background |
+| Pixel White | `#DBDBDB` | Light backgrounds and text |
+| Existential Angst | `#0A0A0A` | Dark backgrounds |
 | Dark Summoning | `#373839` | Primary elements |
 | Million Grey | `#999999` | Secondary elements |
 | Kettleman | `#5F6062` | Muted text |
 | Inkwell Inception | `#1F1F20` | Dark mode cards |
+| Terracotta Sunset | `#D17850` | Accent and highlights |
 
 ---
 
-## Architecture
+## 🏗️ Architecture
 
 ### Frontend Stack
 
@@ -52,10 +56,11 @@ Built with a glassmorphism-inspired aesthetic featuring:
 Next.js 15 (App Router)
 ├── React 19
 ├── TypeScript
-├── Tailwind CSS 4
+├── Tailwind CSS
 ├── GSAP (Animations)
 ├── Lenis (Smooth Scroll)
-└── Radix UI (Components)
+├── Radix UI (Components)
+└── PostHog (Analytics)
 ```
 
 ### Backend Stack
@@ -65,71 +70,115 @@ Node.js + Express
 ├── TypeScript
 ├── Prisma ORM
 ├── PostgreSQL
-├── SMTP Server
-└── Node Cron (Cleanup)
+├── SMTP Server (smtp-server)
+├── MailParser (Email parsing)
+├── Node Cron (Cleanup scheduler)
+├── Express Rate Limit
+└── PostHog Analytics
+```
+
+### Infrastructure
+
+```
+Production Setup
+├── VPS Server (DigitalOcean/AWS EC2)
+├── PostgreSQL Database
+├── Nginx (Reverse Proxy)
+├── PM2 (Process Manager)
+├── Let's Encrypt (SSL/TLS)
+└── DNS (A & MX Records)
 ```
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
-- PostgreSQL
+- PostgreSQL 14+
 - pnpm (recommended) or npm
+- Git
 
-### Installation
+### Local Development Setup
 
-1. Clone the repository
+#### 1. Clone the repository
 
 ```bash
 git clone https://github.com/SheerWill007/temp-mail.git
 cd temp-mail
 ```
 
-2. Backend Setup
+#### 2. Backend Setup
 
 ```bash
 cd backend
 pnpm install
 
-# Create .env file
+# Create .env file from example
 cp .env.example .env
+```
 
-# Configure your .env
+Edit `.env` with your configuration:
+```env
 DATABASE_URL=postgresql://user:password@localhost:5432/tempmail
-SMTP_DOMAIN=temp.willx.tech
-API_PORT=3001
 
-# Run migrations
-pnpm prisma:migrate
+# Domain Configuration
+SMTP_DOMAIN=localhost
+MAIL_DOMAIN=localhost
+
+# Server Configuration
+API_PORT=3001
+SMTP_PORT=2525  # Use non-privileged port for dev
+
+# Cleanup Service
+CLEANUP_ENABLED=true
+CLEANUP_LEADER=true
+
+# CORS
+FRONTEND_URL=http://localhost:3000
+CORS_ORIGIN=http://localhost:3000
+
+# Environment
+NODE_ENV=development
+```
+
+```bash
+# Setup database
 pnpm prisma:generate
+pnpm prisma migrate dev
 
 # Start backend
 pnpm dev
 ```
 
-3. Frontend Setup
+#### 3. Frontend Setup
 
 ```bash
 cd frontend
 pnpm install
 
-# Install animation libraries
-pnpm add gsap lenis
-
 # Create .env.local
+cp .env.example .env.local
+```
+
+Edit `.env.local`:
+```env
 NEXT_PUBLIC_API_BASE=http://localhost:3001
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_MAIL_DOMAIN=localhost
+```
 
+```bash
 # Start frontend
 pnpm dev
 ```
 
-4. Open your browser
+#### 4. Open your browser
 
 Navigate to [http://localhost:3000](http://localhost:3000)
+
+**Note:** For local development, the SMTP server runs on port 2525. To receive test emails, you can use tools like [Mailtrap](https://mailtrap.io) or send emails directly via telnet to localhost:2525.
 
 ---
 

@@ -96,6 +96,6 @@ export function startSmtp(): void {
 
     }
   })
-  const port = Number(process.env.SMTP_PORT) || 25;
+  const port = Number(process.env.SMTP_PORT || 25);
   server.listen(port, () => console.log(`SMTP server listening on port ${port}`));
 }

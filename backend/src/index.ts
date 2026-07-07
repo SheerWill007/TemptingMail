@@ -4,10 +4,15 @@ import { cleanupScheduler } from './services/scheduler.js';
 
 console.log('Starting temp-mail backend...');
 
-startSmtp();
+const smtpEnabled = process.env.ENABLE_SMTP !== 'false';
+if (smtpEnabled) {
+  startSmtp();
+} else {
+  console.log('SMTP server disabled (set ENABLE_SMTP=true to enable)');
+}
 
 const api = createApiServer();
-const apiPort = Number(process.env.API_PORT) || 3001;
+const apiPort = Number(process.env.PORT || process.env.API_PORT || 3001);
 
 api.listen(apiPort, () => {
   console.log(`API listening on :${apiPort}`);

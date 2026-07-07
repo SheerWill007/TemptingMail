@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: temp-mail-backend
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: |
+      pnpm install
+      pnpm prisma generate
+      pnpm build
+    startCommand: node dist/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: API_PORT
+        value: 10000
+      - key: ENABLE_SMTP
+        value: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: temp-mail-db
+          property: connectionString
+      - key: SMTP_DOMAIN
+        value: your-mail-domain.com
+      - key: MAIL_DOMAIN
+        value: your-mail-domain.com
+      - key: FRONTEND_URL
+        value: https://your-frontend-url
+      - key: CORS_ORIGIN
+        value: https://your-frontend-url
+      - key: CLEANUP_ENABLED
+        value: true
+      - key: CLEANUP_LEADER
+        value: true
+
+databases:
+  - name: temp-mail-db
+    databaseName: tempmail
+    user: tempmail
+    plan: free

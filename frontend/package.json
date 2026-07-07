@@ -1,6 +1,6 @@
 {
-  "name": "TemperLostEncrypter",
-  "version": "0.1.0",
+  "name": "temp-mail-frontend",
+  "version": "1.0.0",
   "type": "module",
   "private": true,
   "scripts": {

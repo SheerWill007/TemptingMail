@@ -75,9 +75,42 @@
     min-height: 100vh;
   }
 
-  /* Smooth scrolling */
+  /* Lenis smooth scroll */
+  html.lenis {
+    height: auto;
+  }
+
+  .lenis.lenis-smooth {
+    scroll-behavior: auto;
+  }
+
+  .lenis.lenis-smooth [data-lenis-prevent] {
+    overscroll-behavior: contain;
+  }
+
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
+
+  .lenis.lenis-scrolling iframe {
+    pointer-events: none;
+  }
+
+  /* Hide scrollbar */
   html {
-    scroll-behavior: smooth;
+    overflow: -moz-scrollbars-none;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  html::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  body {
+    overflow-x: hidden;
   }
 
   /* Remove default button styles */
@@ -89,31 +122,41 @@
   input:focus {
     @apply outline-none;
   }
+
+  /* Force input text visibility */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"] {
+    color: rgb(255, 255, 255) !important;
+    -webkit-text-fill-color: rgb(255, 255, 255) !important;
+  }
+
+  input::placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
+    opacity: 1 !important;
+  }
+
+  input::-webkit-input-placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
+  }
+
+  input:-moz-placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
+  }
+
+  input::-moz-placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
+  }
+
+  input:-ms-input-placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
+  }
 }
 
 /* Selection styles */
 ::selection {
   background-color: rgba(255, 255, 255, 0.3);
   color: rgb(250, 250, 250);
-}
-
-/* Scrollbar styles */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Animations */

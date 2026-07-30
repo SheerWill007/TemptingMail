@@ -80,7 +80,7 @@ export default function HomePage() {
           {/* Input Section */}
           <div className="max-w-2xl mx-auto space-y-4">
             <div className="relative">
-              <div className="flex items-center gap-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-2 pr-2">
+              <div className="flex items-center gap-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-2 pr-2 shadow-lg">
                 <input
                   type="text"
                   value={username}
@@ -91,12 +91,16 @@ export default function HomePage() {
                     }
                   }}
                   placeholder="Enter your username"
-                  className="flex-1 bg-transparent border-none outline-none text-white placeholder:text-white/40 px-4 py-4 text-lg"
+                  className="flex-1 bg-transparent border-none outline-none text-white placeholder:text-white/50 px-4 py-4 text-lg font-medium"
+                  style={{ 
+                    WebkitTextFillColor: 'rgb(255, 255, 255)',
+                    textShadow: '0 0 1px rgba(0, 0, 0, 0.3)'
+                  }}
                 />
                 <button
                   onClick={handleCreateMailbox}
                   disabled={!username.trim() || isLoading}
-                  className="flex items-center gap-2 bg-white text-black px-6 py-4 rounded-xl font-medium hover:bg-white/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 bg-white text-black px-6 py-4 rounded-xl font-medium hover:bg-white/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
                 >
                   {isLoading ? (
                     <span className="animate-spin">↻</span>
@@ -110,7 +114,7 @@ export default function HomePage() {
               </div>
             </div>
             
-            <p className="text-white/60 text-sm">
+            <p className="text-white/70 text-sm drop-shadow-md">
               Your email will be: <span className="font-semibold text-white">{username || "username"}</span>@temp.willx.tech
             </p>
           </div>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { PostHogProvider } from "@/components/PostHogProvider"
+import { LenisProvider } from "@/components/LenisProvider"
 import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
 
@@ -42,9 +43,11 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </head>
       <body>
-        <PostHogProvider>
-          {children}
-        </PostHogProvider>
+        <LenisProvider>
+          <PostHogProvider>
+            {children}
+          </PostHogProvider>
+        </LenisProvider>
         <Toaster />
       </body>
     </html>

@@ -1,4 +1,4 @@
-const ALLOWED_DOMAIN = process.env.SMTP_DOMAIN || process.env.MAIL_DOMAIN || 'temp.willx.tech';
+const ALLOWED_DOMAIN = process.env.SMTP_DOMAIN || process.env.MAIL_DOMAIN || 'temp.abhi.at';
 
 export function makeCustomAddress(username: string) {
   const sanitizedUsername = username

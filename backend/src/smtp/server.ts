@@ -13,8 +13,8 @@ export function startSmtp(): void {
     disabledCommands: ['AUTH'],
     async onRcptTo(address, session, cb) {
       const rcpt = normalizeAddress(address.address);
-      console.log('[RCPT TO]', { raw: address.address, normalized: rcpt });
-      if (!isOurDomain(rcpt)) {
+      console.log('[RCPT TO]', {raw: address.address, normalized: rcpt});
+      if(!isOurDomain(rcpt)) {
         const domain = extractDomain(rcpt);
         const err = new Error(`Relay denied for domain ${domain || '(none)'}`) as SMTPError;
         err.responseCode = 550;
@@ -57,7 +57,7 @@ export function startSmtp(): void {
 
         await prisma.message.create({
           data: {
-            mailbox: { connect: { address: rcptAddr } },
+            mailbox: {connect: {address: rcptAddr}},
             from: parsed.from?.text || 'unknown',
             subject: parsed.subject || '(No Subject)',
             raw: rawBuffer,
@@ -96,6 +96,6 @@ export function startSmtp(): void {
 
     }
   })
-  const port = Number(process.env.SMTP_PORT || 25);
+  const port = Number(process.env.SMTP_PORT) || 25;
   server.listen(port, () => console.log(`SMTP server listening on port ${port}`));
 }

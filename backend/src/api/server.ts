@@ -16,18 +16,15 @@ export function createApiServer(): Server {
   const corsOptions = {
     origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
       if (!origin) return callback(null, true);
-
-      const envOrigins = [process.env.CORS_ORIGIN, process.env.FRONTEND_URL]
-        .filter((value): value is string => Boolean(value))
-        .flatMap((value) => value.split(',').map((entry) => entry.trim()).filter(Boolean));
-
+      
+      // Get allowed origins from environment variable
+      const corsOriginEnv = process.env.CORS_ORIGIN || '';
       const allowedOrigins = [
-        'https://temp.willx.tech',
+        ...corsOriginEnv.split(',').filter(Boolean).map(origin => origin.trim()),
         'http://localhost:3000',
         'http://127.0.0.1:3000',
         'http://localhost:3001',
-        'http://127.0.0.1:3001',
-        ...envOrigins
+        'http://127.0.0.1:3001'
       ];
       
       if (allowedOrigins.includes(origin)) {

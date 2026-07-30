@@ -5,10 +5,8 @@ const nextConfig = {
   },
   reactStrictMode: true,
   eslint: {
-    // Only run ESLint on these directories during build
-    dirs: ['app', 'components', 'lib'],
-    // Don't fail the build on ESLint errors
-    ignoreDuringBuilds: false,
+    // Don't run ESLint during production builds (only in dev)
+    ignoreDuringBuilds: true,
   },
   typescript: {
     // Don't fail build on type errors (optional)

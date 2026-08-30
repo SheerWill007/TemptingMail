@@ -17,10 +17,8 @@ export function createApiServer(): Server {
     origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
       if (!origin) return callback(null, true);
       
-      // Get allowed origins from environment variable
-      const corsOriginEnv = process.env.CORS_ORIGIN || '';
       const allowedOrigins = [
-        ...corsOriginEnv.split(',').filter(Boolean).map(origin => origin.trim()),
+        'https://temp-mail.abhi.at',
         'http://localhost:3000',
         'http://127.0.0.1:3000',
         'http://localhost:3001',

@@ -2,6 +2,7 @@ import { simpleParser, type ParsedMail } from 'mailparser';
 import { config } from '../config.js';
 import { toAddress } from '../lib/email.js';
 import { prisma } from '../lib/prisma.js';
+import { publishMail } from './events.js';
 
 const PREVIEW_LENGTH = 200;
 
@@ -38,8 +39,8 @@ export async function storeIncomingMessage(raw: Buffer, recipients: string[]) {
     expiresAt,
   };
 
-  const ids = await prisma.$transaction(async (tx) => {
-    const created: string[] = [];
+  const stored = await prisma.$transaction(async (tx) => {
+    const created: { address: string; messageId: string }[] = [];
     for (const address of recipients) {
       // Every delivery keeps the mailbox alive for another TTL window.
       const mailbox = await tx.mailbox.upsert({
@@ -48,12 +49,15 @@ export async function storeIncomingMessage(raw: Buffer, recipients: string[]) {
         update: { expiresAt },
       });
       const message = await tx.message.create({ data: { ...data, mailboxId: mailbox.id }, select: { id: true } });
-      created.push(message.id);
+      created.push({ address, messageId: message.id });
     }
     return created;
   });
 
-  return { ids, parsed };
+  // Only after commit, so listeners can always read what they're told about.
+  for (const event of stored) publishMail(event);
+
+  return { ids: stored.map((s) => s.messageId), parsed };
 }
 
 /** Creates the mailbox, or revives it if it already exists. Idempotent. */

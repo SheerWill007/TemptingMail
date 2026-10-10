@@ -49,12 +49,33 @@ const schema = z.object({
   SMTP_HOST: z.string().default('0.0.0.0'),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(2525),
   SMTP_HOSTNAME: z.string().optional(),
-  SMTP_MAX_MESSAGE_BYTES: z.coerce.number().int().positive().default(10 * 1024 * 1024),
+  SMTP_MAX_MESSAGE_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(10 * 1024 * 1024),
   SMTP_MAX_RECIPIENTS: z.coerce.number().int().positive().default(50),
   SMTP_TLS_KEY_PATH: z.string().optional(),
   SMTP_TLS_CERT_PATH: z.string().optional(),
+  SMTP_MAX_CONNECTIONS_PER_MINUTE: z.coerce.number().int().positive().default(60),
 
-  MAILBOX_TTL_HOURS: z.coerce.number().positive().max(24 * 30).default(24),
+  // Added to the built-in reserved list (admin, postmaster, hostmaster, webmaster, ...).
+  RESERVED_NAMES: csv,
+
+  // Real-time push across instances via Postgres LISTEN/NOTIFY (in-process delivery always works).
+  REALTIME_PG_NOTIFY: bool(true),
+  SSE_MAX_CLIENTS: z.coerce.number().int().positive().default(5000),
+  SSE_MAX_CLIENTS_PER_IP: z.coerce.number().int().positive().default(10),
+
+  // Prometheus metrics on a separate port; disabled unless set.
+  METRICS_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+  METRICS_HOST: z.string().default('127.0.0.1'),
+
+  MAILBOX_TTL_HOURS: z.coerce
+    .number()
+    .positive()
+    .max(24 * 30)
+    .default(24),
   MAILBOX_CREATE_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(20),
   API_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
 
@@ -104,6 +125,17 @@ function load() {
       maxRecipients: e.SMTP_MAX_RECIPIENTS,
       tlsKeyPath: e.SMTP_TLS_KEY_PATH,
       tlsCertPath: e.SMTP_TLS_CERT_PATH,
+      maxConnectionsPerMinute: e.SMTP_MAX_CONNECTIONS_PER_MINUTE,
+    },
+    reservedNames: e.RESERVED_NAMES.map((n) => n.toLowerCase()),
+    realtime: {
+      pgNotify: e.REALTIME_PG_NOTIFY,
+      maxClients: e.SSE_MAX_CLIENTS,
+      maxClientsPerIp: e.SSE_MAX_CLIENTS_PER_IP,
+    },
+    metrics: {
+      port: e.METRICS_PORT,
+      host: e.METRICS_HOST,
     },
     cleanup: {
       enabled: e.CLEANUP_ENABLED,
@@ -117,4 +149,3 @@ function load() {
 }
 
 export const config = load();
-export type Config = typeof config;

@@ -26,11 +26,13 @@ RUN npm ci --omit=dev \
   && npx prisma version > /dev/null \
   && npm cache clean --force
 COPY --from=build /app/dist ./dist
+COPY openapi.yaml ./
 
 USER node
-EXPOSE 3001 2525
+# 3001 HTTP API, 2525 SMTP, 9464 Prometheus metrics (only when METRICS_PORT is set)
+EXPOSE 3001 2525 9464
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.API_PORT||3001)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.API_PORT||3001)+'/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 # Apply pending migrations, then replace the shell so node receives SIGTERM directly.
 CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/index.js"]

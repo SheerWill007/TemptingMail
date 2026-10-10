@@ -1,11 +1,14 @@
 import 'dotenv/config';
 import type { Server } from 'node:http';
 import { createApp } from './api/app.js';
+import { closeAllStreams } from './api/sse.js';
 import { config } from './config.js';
 import { shutdownAnalytics } from './lib/analytics.js';
 import { logger } from './lib/logger.js';
+import { startMetricsServer } from './lib/metrics.js';
 import { prisma } from './lib/prisma.js';
 import { startCleanupScheduler } from './services/cleanup.js';
+import { startEventBridge, stopEventBridge } from './services/events.js';
 import { createSmtpServer } from './smtp/server.js';
 
 const httpServer: Server = createApp().listen(config.api.port, config.api.host, () => {
@@ -18,6 +21,8 @@ smtpServer?.listen(config.smtp.port, config.smtp.host, () => {
   logger.info({ port: config.smtp.port, hostname: config.smtp.hostname }, 'SMTP listening');
 });
 
+const metricsServer = startMetricsServer();
+startEventBridge();
 const stopCleanup = config.cleanup.enabled ? startCleanupScheduler(config.cleanup.intervalMs) : null;
 
 let shuttingDown = false;
@@ -33,11 +38,16 @@ async function shutdown(signal: string) {
   forceExit.unref();
 
   stopCleanup?.();
+  // Long-lived event streams would otherwise keep the HTTP server open until the timeout.
+  closeAllStreams();
+  httpServer.closeIdleConnections();
   await Promise.allSettled([
     new Promise<void>((resolve) => httpServer.close(() => resolve())),
     new Promise<void>((resolve) => (smtpServer ? smtpServer.close(() => resolve()) : resolve())),
+    new Promise<void>((resolve) => (metricsServer ? metricsServer.close(() => resolve()) : resolve())),
   ]);
-  await Promise.allSettled([prisma.$disconnect(), shutdownAnalytics()]);
+  await Promise.allSettled([stopEventBridge(), prisma.$disconnect(), shutdownAnalytics()]);
+  logger.info('shutdown complete');
   process.exit(0);
 }
 

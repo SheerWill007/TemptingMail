@@ -2,10 +2,18 @@
 #   cp .env.example .env   # then edit
 #   docker compose up -d --build
 
+# Rotate container logs so they can't fill the disk.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '5'
+
 services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-tempmail}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
@@ -13,7 +21,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -21,6 +29,7 @@ services:
   backend:
     build: ./backend
     restart: unless-stopped
+    logging: *logging
     init: true
     depends_on:
       db:
@@ -33,15 +42,20 @@ services:
       SMTP_PORT: 2525
       API_PORT: 3001
       # Caddy is the single proxy hop in front of /api.
-      TRUST_PROXY: "1"
+      TRUST_PROXY: '1'
       MAILBOX_TTL_HOURS: ${MAILBOX_TTL_HOURS:-24}
       MAILBOX_CREATE_LIMIT_PER_HOUR: ${MAILBOX_CREATE_LIMIT_PER_HOUR:-20}
       API_RATE_LIMIT_PER_MINUTE: ${API_RATE_LIMIT_PER_MINUTE:-120}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      RESERVED_NAMES: ${RESERVED_NAMES:-}
+      SMTP_MAX_CONNECTIONS_PER_MINUTE: ${SMTP_MAX_CONNECTIONS_PER_MINUTE:-60}
+      # Prometheus metrics on the internal network only (not published to the host).
+      METRICS_PORT: 9464
+      METRICS_HOST: 0.0.0.0
       POSTHOG_KEY: ${POSTHOG_KEY:-}
     ports:
       # Public SMTP (MX). The container listens on 2525 so it doesn't need root.
-      - "25:2525"
+      - '25:2525'
 
   frontend:
     build:
@@ -53,6 +67,7 @@ services:
         NEXT_PUBLIC_POSTHOG_KEY: ${NEXT_PUBLIC_POSTHOG_KEY:-}
         NEXT_PUBLIC_POSTHOG_HOST: ${NEXT_PUBLIC_POSTHOG_HOST:-}
     restart: unless-stopped
+    logging: *logging
     depends_on:
       - backend
     environment:
@@ -61,15 +76,16 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    logging: *logging
     depends_on:
       - frontend
       - backend
     environment:
       SITE_DOMAIN: ${SITE_DOMAIN}
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

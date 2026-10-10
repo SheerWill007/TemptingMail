@@ -1,0 +1,279 @@
+openapi: 3.1.0
+info:
+  title: Temp Mail API
+  version: 2.1.0
+  description: |
+    Disposable email service API. All routes are relative to `/api`.
+
+    `name` is the local part of an address (`alice` in `alice@example.com`): 1-64 characters of
+    `a-z 0-9 . _ -`, starting and ending with a letter or digit. Role names such as `admin` and
+    `postmaster` are reserved.
+
+    Every response carries an `X-Request-Id` header; send your own to correlate logs.
+    Rate limits are reported with IETF `RateLimit` / `RateLimit-Policy` headers.
+  license:
+    name: AGPL-3.0-only
+    url: https://www.gnu.org/licenses/agpl-3.0.html
+servers:
+  - url: /api
+tags:
+  - name: Service
+  - name: Mailboxes
+  - name: Messages
+
+paths:
+  /health:
+    get:
+      tags: [Service]
+      summary: Readiness check (alias of /health/ready)
+      responses:
+        '200': { $ref: '#/components/responses/Ready' }
+        '503': { $ref: '#/components/responses/NotReady' }
+  /health/live:
+    get:
+      tags: [Service]
+      summary: Liveness check (does not touch the database)
+      responses:
+        '200':
+          description: Process is running
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean, const: true } } }
+  /health/ready:
+    get:
+      tags: [Service]
+      summary: Readiness check (database reachable)
+      responses:
+        '200': { $ref: '#/components/responses/Ready' }
+        '503': { $ref: '#/components/responses/NotReady' }
+  /config:
+    get:
+      tags: [Service]
+      summary: Public service configuration
+      responses:
+        '200':
+          description: Configuration
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Config' }
+
+  /mailboxes:
+    post:
+      tags: [Mailboxes]
+      summary: Create or re-open a mailbox
+      description: Idempotent. Only newly created mailboxes count against the per-IP creation limit.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: Omit for a random readable name such as `swift-otter-4821`.
+                  examples: [alice]
+      responses:
+        '201':
+          { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Mailbox' } } } }
+        '200':
+          {
+            description: Already existed,
+            content: { application/json: { schema: { $ref: '#/components/schemas/Mailbox' } } },
+          }
+        '400': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /mailboxes/{name}:
+    parameters: [{ $ref: '#/components/parameters/Name' }]
+    get:
+      tags: [Mailboxes]
+      summary: Mailbox details and message summaries (newest first, max 100)
+      responses:
+        '200': { description: Inbox, content: { application/json: { schema: { $ref: '#/components/schemas/Inbox' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [Mailboxes]
+      summary: Delete the mailbox and all its messages
+      responses:
+        '204': { description: Deleted }
+        '400': { $ref: '#/components/responses/Error' }
+
+  /mailboxes/{name}/events:
+    parameters: [{ $ref: '#/components/parameters/Name' }]
+    get:
+      tags: [Mailboxes]
+      summary: Live new-mail notifications (Server-Sent Events)
+      description: |
+        Emits `event: message` with `data: {"id": "<messageId>"}` whenever mail arrives, plus a comment
+        heartbeat every 25 seconds. Clients should refetch the inbox on each event.
+      responses:
+        '200': { description: Event stream, content: { text/event-stream: { schema: { type: string } } } }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+
+  /mailboxes/{name}/messages/{id}:
+    parameters: [{ $ref: '#/components/parameters/Name' }, { $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Messages]
+      summary: Full message (marks it read)
+      responses:
+        '200':
+          {
+            description: Message,
+            content: { application/json: { schema: { $ref: '#/components/schemas/MessageDetail' } } },
+          }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [Messages]
+      summary: Delete a message
+      responses:
+        '204': { description: Deleted }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /mailboxes/{name}/messages/{id}/raw:
+    parameters: [{ $ref: '#/components/parameters/Name' }, { $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Messages]
+      summary: Original message source (.eml)
+      responses:
+        '200':
+          { description: RFC 5322 message, content: { message/rfc822: { schema: { type: string, format: binary } } } }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /mailboxes/{name}/messages/{id}/attachments/{index}:
+    parameters:
+      - { $ref: '#/components/parameters/Name' }
+      - { $ref: '#/components/parameters/Id' }
+      - { name: index, in: path, required: true, schema: { type: integer, minimum: 0 } }
+      - name: download
+        in: query
+        required: false
+        description: Present to force a download even for inline-safe images.
+        schema: { type: string }
+    get:
+      tags: [Messages]
+      summary: Attachment content
+      description: Only PNG, JPEG, GIF, WebP, AVIF and BMP are served inline; everything else is a download.
+      responses:
+        '200':
+          {
+            description: Attachment,
+            content: { application/octet-stream: { schema: { type: string, format: binary } } },
+          }
+        '404': { $ref: '#/components/responses/Error' }
+
+components:
+  parameters:
+    Name:
+      name: name
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$' }
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Ready:
+      description: Ready
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ok: { type: boolean }
+              database: { type: string, enum: [up] }
+              uptime: { type: integer, description: Seconds }
+    NotReady:
+      description: Not ready
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ok: { type: boolean }
+              database: { type: string, enum: [down] }
+
+  schemas:
+    Error:
+      type: object
+      required: [error, code, requestId]
+      properties:
+        error: { type: string, description: Human-readable message }
+        code:
+          type: string
+          enum:
+            - BAD_REQUEST
+            - INVALID_USERNAME
+            - RESERVED_USERNAME
+            - NOT_FOUND
+            - MESSAGE_NOT_FOUND
+            - ATTACHMENT_NOT_FOUND
+            - PAYLOAD_TOO_LARGE
+            - RATE_LIMITED
+            - REALTIME_UNAVAILABLE
+            - SERVICE_UNAVAILABLE
+            - INTERNAL_ERROR
+        requestId: { type: string }
+    Config:
+      type: object
+      properties:
+        domain: { type: string, examples: [mail.example.com] }
+        ttlHours: { type: number }
+        maxMessageBytes: { type: integer }
+    Mailbox:
+      type: object
+      properties:
+        username: { type: string }
+        address: { type: string, format: email }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+    MessageSummary:
+      type: object
+      properties:
+        id: { type: string }
+        from: { type: string }
+        subject: { type: [string, 'null'] }
+        preview: { type: string }
+        size: { type: integer }
+        hasAttachments: { type: boolean }
+        isRead: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    Inbox:
+      type: object
+      properties:
+        address: { type: string, format: email }
+        exists: { type: boolean }
+        createdAt: { type: [string, 'null'], format: date-time }
+        expiresAt: { type: [string, 'null'], format: date-time }
+        messages: { type: array, items: { $ref: '#/components/schemas/MessageSummary' } }
+    Attachment:
+      type: object
+      properties:
+        index: { type: integer }
+        filename: { type: string }
+        contentType: { type: string }
+        size: { type: integer }
+        inline: { type: boolean, description: Embedded image referenced from the HTML body }
+        url: { type: string }
+    MessageDetail:
+      type: object
+      properties:
+        id: { type: string }
+        to: { type: string }
+        from: { type: string }
+        subject: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        date: { type: string, format: date-time }
+        size: { type: integer }
+        html: { type: [string, 'null'], description: Unsanitized HTML; clients must sanitize and sandbox it }
+        text: { type: [string, 'null'] }
+        attachments: { type: array, items: { $ref: '#/components/schemas/Attachment' } }
+        rawUrl: { type: string }

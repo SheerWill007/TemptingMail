@@ -105,10 +105,18 @@ export default function HomePage() {
                 className="glass-button flex-1 py-4 sm:flex-none"
                 title="Generate a random address"
               >
-                {pending === 'random' ? <LoaderCircle className="size-5 animate-spin" /> : <Shuffle className="size-5" />}
+                {pending === 'random' ? (
+                  <LoaderCircle className="size-5 animate-spin" />
+                ) : (
+                  <Shuffle className="size-5" />
+                )}
                 <span className="sm:sr-only">Random</span>
               </button>
-              <button type="submit" disabled={!valid || pending !== null} className="solid-button flex-1 py-4 sm:flex-none">
+              <button
+                type="submit"
+                disabled={!valid || pending !== null}
+                className="solid-button flex-1 py-4 sm:flex-none"
+              >
                 {pending === 'custom' ? (
                   <LoaderCircle className="size-5 animate-spin" />
                 ) : (
@@ -121,7 +129,8 @@ export default function HomePage() {
           </div>
 
           <p className="text-sm text-white/70 drop-shadow-md">
-            Your email will be: <span className="font-semibold break-all text-white">{username || 'username'}</span>@{domain}
+            Your email will be: <span className="font-semibold break-all text-white">{username || 'username'}</span>@
+            {domain}
           </p>
 
           {recent.length > 0 && (

@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: tempmail
       POSTGRES_DB: tempmail
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - pgdata-dev:/var/lib/postgresql/data
 

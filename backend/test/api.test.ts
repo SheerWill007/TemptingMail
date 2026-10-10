@@ -88,7 +88,13 @@ describe('POST /api/mailboxes', () => {
     store.ensureMailbox.mockResolvedValue({ mailbox: mailbox('x@mail.test'), created: true });
     const statuses: number[] = [];
     for (let i = 0; i < 4; i++) {
-      statuses.push((await request(limited).post('/api/mailboxes').send({ username: `n${i}` })).status);
+      statuses.push(
+        (
+          await request(limited)
+            .post('/api/mailboxes')
+            .send({ username: `n${i}` })
+        ).status,
+      );
     }
     // MAILBOX_CREATE_LIMIT_PER_HOUR=3 in vitest.config.ts; the limiter store is shared per process.
     expect(statuses).toContain(429);
@@ -129,9 +135,7 @@ describe('mailbox and message routes', () => {
       html: '<img src="cid:logo@x">',
       text: 'Hi',
       date: new Date('2026-01-01T00:00:00Z'),
-      attachments: [
-        { filename: 'logo.png', contentType: 'image/png', size: 10, contentId: '<logo@x>', related: true },
-      ],
+      attachments: [{ filename: 'logo.png', contentType: 'image/png', size: 10, contentId: '<logo@x>', related: true }],
     });
     const res = await request(app).get('/api/mailboxes/john/messages/m1');
     expect(res.status).toBe(200);

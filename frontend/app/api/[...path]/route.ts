@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 const API_URL = (process.env.API_URL || 'http://localhost:3001').replace(/\/+$/, '')
 
-const FORWARDED_REQUEST_HEADERS = ['accept', 'accept-language', 'content-type', 'user-agent']
+const FORWARDED_REQUEST_HEADERS = ['accept', 'accept-language', 'content-type', 'user-agent', 'x-request-id']
 const DROPPED_RESPONSE_HEADERS = [
   'connection',
   'keep-alive',
@@ -41,12 +41,17 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
       body: hasBody ? await req.arrayBuffer() : undefined,
       redirect: 'manual',
       cache: 'no-store',
+      // Abort upstream when the browser goes away (important for long-lived event streams).
+      signal: req.signal,
     })
     const responseHeaders = new Headers(upstream.headers)
     for (const name of DROPPED_RESPONSE_HEADERS) responseHeaders.delete(name)
     return new Response(upstream.body, { status: upstream.status, headers: responseHeaders })
   } catch {
-    return Response.json({ error: 'The mail service is temporarily unavailable.' }, { status: 502 })
+    return Response.json(
+      { error: 'The mail service is temporarily unavailable.', code: 'SERVICE_UNAVAILABLE' },
+      { status: 502 },
+    )
   }
 }
 

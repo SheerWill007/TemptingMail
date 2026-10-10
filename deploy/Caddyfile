@@ -1,17 +1,33 @@
 {$SITE_DOMAIN} {
-	encode zstd gzip
-
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		-Server
 	}
 
+	# Live new-mail streams (Server-Sent Events): no compression, flush every event immediately.
+	@events path_regexp events ^/api/mailboxes/[^/]+/events$
+	handle @events {
+		reverse_proxy backend:3001 {
+			flush_interval -1
+			header_up X-Request-Id {http.request.uuid}
+		}
+	}
+
 	# API goes straight to the backend; everything else to Next.js.
 	handle /api/* {
-		reverse_proxy backend:3001
+		encode zstd gzip
+		reverse_proxy backend:3001 {
+			header_up X-Request-Id {http.request.uuid}
+		}
 	}
 
 	handle {
+		encode zstd gzip
 		reverse_proxy frontend:3000
+	}
+
+	log {
+		output stdout
+		format json
 	}
 }

@@ -1,10 +1,13 @@
 import { logger } from '../lib/logger.js';
+import { cleanupDeleted } from '../lib/metrics.js';
 import { prisma } from '../lib/prisma.js';
 
 export async function cleanupExpired(now = new Date()) {
   const messages = await prisma.message.deleteMany({ where: { expiresAt: { lt: now } } });
   // Deleting a mailbox cascades to any remaining messages.
   const mailboxes = await prisma.mailbox.deleteMany({ where: { expiresAt: { lt: now } } });
+  cleanupDeleted.inc({ kind: 'message' }, messages.count);
+  cleanupDeleted.inc({ kind: 'mailbox' }, mailboxes.count);
   return { messages: messages.count, mailboxes: mailboxes.count };
 }
 

@@ -1,0 +1,32 @@
+{
+  "name": "temp-mail",
+  "version": "2.1.0",
+  "private": true,
+  "description": "Self-hosted disposable email service: SMTP server, REST API and Next.js web app.",
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "setup": "npm ci && npm ci --prefix backend && npm ci --prefix frontend",
+    "dev:db": "docker compose -f docker-compose.dev.yml up -d",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
+    "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",
+    "test": "npm test --prefix backend && npm test --prefix frontend",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,cjs,json,md,yml,yaml,css}": "prettier --write"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.9"
+  }
+}

@@ -20,14 +20,36 @@ function ensureHooks() {
  */
 export function sanitizeEmailHtml(html: string): string {
   if (typeof window === 'undefined') return ''
+  // DOMPurify returns its input untouched when it can't run; fail closed to inert text instead.
+  if (!DOMPurify.isSupported)
+    return textToHtml(
+      html
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim(),
+    )
   ensureHooks()
   return DOMPurify.sanitize(html, {
     FORCE_BODY: true, // keep leading <style> blocks that emails put in <head>
     ADD_TAGS: ['style'],
     ADD_ATTR: ['target'],
     FORBID_TAGS: [
-      'script', 'iframe', 'frame', 'frameset', 'object', 'embed', 'applet', 'base', 'meta', 'link',
-      'form', 'input', 'button', 'textarea', 'select', 'option',
+      'script',
+      'iframe',
+      'frame',
+      'frameset',
+      'object',
+      'embed',
+      'applet',
+      'base',
+      'meta',
+      'link',
+      'form',
+      'input',
+      'button',
+      'textarea',
+      'select',
+      'option',
     ],
     FORBID_ATTR: ['action', 'formaction', 'srcdoc'],
   })

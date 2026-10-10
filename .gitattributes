@@ -1,0 +1,8 @@
+# Normalize line endings: LF in the repository and in working copies, so files behave the same in
+# Linux containers and CI regardless of the contributor's OS.
+* text=auto eol=lf
+
+*.png binary
+*.webp binary
+*.jpg binary
+*.ico binary

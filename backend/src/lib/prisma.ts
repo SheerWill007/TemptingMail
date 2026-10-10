@@ -6,5 +6,3 @@ export const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: config.databaseUrl }),
   log: ['warn', 'error'],
 });
-
-export type { Mailbox, Message } from '../generated/prisma/client.js';

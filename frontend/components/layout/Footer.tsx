@@ -30,7 +30,12 @@ export function Footer() {
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-6 md:flex-row">
         <p className="flex items-center gap-2 text-sm text-white/70">
           Made with <span className="text-red-400">♥</span> by
-          <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="font-medium text-white hover:text-white/80">
+          <a
+            href={REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-white hover:text-white/80"
+          >
             WilliamBenLaw
           </a>
         </p>
@@ -54,10 +59,22 @@ export function Footer() {
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={iconLink} aria-label="GitHub">
             <GitHubIcon className="size-5 text-white" />
           </a>
-          <a href="https://www.linkedin.com/in/willxtech" target="_blank" rel="noopener noreferrer" className={iconLink} aria-label="LinkedIn">
+          <a
+            href="https://www.linkedin.com/in/willxtech"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={iconLink}
+            aria-label="LinkedIn"
+          >
             <LinkedInIcon className="size-5 text-white" />
           </a>
-          <a href="https://willx.tech" target="_blank" rel="noopener noreferrer" className={iconLink} aria-label="Website">
+          <a
+            href="https://willx.tech"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={iconLink}
+            aria-label="Website"
+          >
             <Globe className="size-5 text-white" />
           </a>
         </div>

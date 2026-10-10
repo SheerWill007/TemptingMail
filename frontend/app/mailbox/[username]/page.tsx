@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { PageShell } from '@/components/layout'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, mailboxEventsUrl } from '@/lib/api'
 import { parseSender, timeAgo, timeLeft } from '@/lib/format'
 import { forgetMailbox, isValidUsername, rememberMailbox, safeDecode, useMailConfig } from '@/lib/mailbox'
 import { trackEvent } from '@/lib/posthog'
@@ -15,6 +15,8 @@ import { useReveal } from '@/lib/use-reveal'
 import { cn } from '@/lib/utils'
 
 const POLL_INTERVAL_MS = 10_000
+/** With a live connection, refetch every 6th tick (60 s) in case an event was missed. */
+const LIVE_SAFETY_TICKS = 6
 
 export default function MailboxPage() {
   const params = useParams<{ username: string }>()
@@ -28,6 +30,8 @@ export default function MailboxPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [copied, setCopied] = useState(false)
   const [now, setNow] = useState(() => Date.now())
+  const [live, setLive] = useState(false)
+  const liveRef = useRef(false)
   const knownIds = useRef<Set<string> | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -51,7 +55,7 @@ export default function MailboxPage() {
     }
   }, [username])
 
-  // Open (create or revive) the mailbox, then poll while the tab is visible.
+  // Open (create or revive) the mailbox, subscribe to live events, and keep polling as a fallback.
   useEffect(() => {
     if (!valid) return
     let cancelled = false
@@ -66,8 +70,27 @@ export default function MailboxPage() {
         if (!cancelled) void load()
       })
 
+    // Server-Sent Events: the browser reconnects automatically after transient failures.
+    let source: EventSource | null = null
+    if (typeof EventSource !== 'undefined') {
+      source = new EventSource(mailboxEventsUrl(username))
+      source.onopen = () => {
+        liveRef.current = true
+        setLive(true)
+      }
+      source.onerror = () => {
+        liveRef.current = false
+        setLive(false)
+      }
+      source.addEventListener('message', () => void load())
+    }
+
+    let ticks = 0
     const timer = setInterval(() => {
-      if (document.visibilityState === 'visible') void load()
+      ticks += 1
+      if (document.visibilityState !== 'visible') return
+      // While live, poll only occasionally as a safety net.
+      if (!liveRef.current || ticks % LIVE_SAFETY_TICKS === 0) void load()
     }, POLL_INTERVAL_MS)
     const onVisible = () => document.visibilityState === 'visible' && void load()
     document.addEventListener('visibilitychange', onVisible)
@@ -75,6 +98,8 @@ export default function MailboxPage() {
 
     return () => {
       cancelled = true
+      source?.close()
+      liveRef.current = false
       clearInterval(timer)
       clearInterval(clock)
       document.removeEventListener('visibilitychange', onVisible)
@@ -147,7 +172,10 @@ export default function MailboxPage() {
             <div className="flex flex-wrap items-end justify-between gap-3">
               <h1 className="text-4xl font-bold text-white md:text-5xl">Your Mailbox</h1>
               {remaining && (
-                <p className="flex items-center gap-1.5 text-sm text-white/60" title={new Date(inbox!.expiresAt!).toLocaleString()}>
+                <p
+                  className="flex items-center gap-1.5 text-sm text-white/60"
+                  title={new Date(inbox!.expiresAt!).toLocaleString()}
+                >
                   <Timer className="size-4" /> Expires in {remaining}
                 </p>
               )}
@@ -165,17 +193,25 @@ export default function MailboxPage() {
                 <RefreshCw className={cn('size-4', refreshing && 'animate-spin')} />
                 <span className="hidden sm:inline">Refresh</span>
               </button>
-              <button onClick={handleDeleteInbox} className="glass-button hover:bg-red-500/30" aria-label="Delete mailbox">
+              <button
+                onClick={handleDeleteInbox}
+                className="glass-button hover:bg-red-500/30"
+                aria-label="Delete mailbox"
+              >
                 <Trash2 className="size-4" />
                 <span className="hidden sm:inline">Delete</span>
               </button>
             </div>
-            <p className="flex items-center gap-2 text-xs text-white/50">
+            <p className="flex items-center gap-2 text-xs text-white/50" role="status">
               <span className="relative flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-green-400 opacity-75" />
-                <span className="relative inline-flex size-2 rounded-full bg-green-400" />
+                {live && (
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-green-400 opacity-75" />
+                )}
+                <span
+                  className={cn('relative inline-flex size-2 rounded-full', live ? 'bg-green-400' : 'bg-amber-400')}
+                />
               </span>
-              Checking for new mail automatically
+              {live ? 'Live: new mail appears instantly' : 'Checking for new mail every 10 seconds'}
             </p>
           </div>
         </div>
@@ -220,7 +256,9 @@ export default function MailboxPage() {
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex min-w-0 items-center gap-2">
-                        {!message.isRead && <span className="size-2 shrink-0 rounded-full bg-sky-400" aria-label="Unread" />}
+                        {!message.isRead && (
+                          <span className="size-2 shrink-0 rounded-full bg-sky-400" aria-label="Unread" />
+                        )}
                         <p className={cn('truncate text-white', !message.isRead ? 'font-semibold' : 'text-white/80')}>
                           {sender.name}
                         </p>

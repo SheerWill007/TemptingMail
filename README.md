@@ -1,47 +1,63 @@
 # Temp Mail
 
-A self-hosted disposable email service. Pick a name (or get a random one), share the address, and read incoming mail in the browser. Mailboxes and messages delete themselves after 24 hours.
+A self-hosted disposable email service. Pick a name (or get a random one), share the address, and watch mail arrive in the browser instantly. Mailboxes and messages delete themselves after 24 hours.
 
 ![Temp Mail](./docs/screenshot.png)
 
-- **Receive-only SMTP server**: accepts mail for your domain and refuses to relay anything else.
-- **Live inbox**: polls for new mail automatically, with unread markers and new-mail notifications.
-- **Safe email rendering**: HTML is sanitized and shown in a sandboxed iframe with no scripts. Remote images are blocked until you allow them.
-- **Attachments and inline images**, plus `.eml` download.
-- **Automatic cleanup** of expired mailboxes and messages.
-- **No accounts and no tracking.** Analytics (PostHog) are optional and never receive addresses or message content.
+**Product**
+
+- **Instant delivery**: new mail is pushed to the open inbox over Server-Sent Events, with a polling fallback.
+- **Safe email rendering**: HTML is sanitized and shown in a sandboxed, script-free iframe. Remote images and trackers are blocked until you allow them.
+- **Attachments, inline images and `.eml` download.** Mailboxes and messages can be deleted.
+- **Random or custom addresses.** Recently used mailboxes are remembered on the device.
+
+**Platform**
+
+- **Receive-only SMTP server**: no open relay, and reserved role addresses (`admin@`, `postmaster@`, ...) can never be claimed.
+- **Observability**: request IDs end to end, structured JSON logs, Prometheus metrics, and liveness/readiness probes.
+- **Documented API**: an OpenAPI 3.1 spec served at `/api/openapi.yaml`, with stable error codes.
+- **Horizontally scalable**: stateless backend, with live events shared across instances through Postgres LISTEN/NOTIFY.
+- **Production packaging**: Docker images, a Compose stack with automatic HTTPS (Caddy), CI with integration tests against real Postgres, CodeQL, Dependabot, and signed-provenance image releases.
+- **Privacy**: no accounts. Optional analytics never receive addresses or message content.
+
+## Contents
+
+- [Architecture](#architecture)
+- [Quick start](#quick-start-local-development)
+- [Deploying](#deploying)
+- [Configuration](#configuration)
+- [API](#api)
+- [Project docs](#project-docs)
+- [License](#license)
 
 ## Architecture
 
 ```
-                    ┌────────────────────────── docker compose ──────────────────────────┐
- Browser ──HTTPS──► │ Caddy ──/api/*──► backend (Express API :3001) ──► PostgreSQL       │
-                    │   │                   ▲                                            │
-                    │   └──────other──► frontend (Next.js :3000)                         │
- Mail servers ─25──►│               backend (SMTP :2525) ──────────────► PostgreSQL       │
-                    └────────────────────────────────────────────────────────────────────┘
+ Browser ──HTTPS──► Caddy ──/api/*──► backend: HTTP API (:3001) + live events ──┐
+                      └────other────► frontend: Next.js (:3000)                  ├──► PostgreSQL
+ Mail servers ──SMTP :25──────────► backend: SMTP server (:2525) ───────────────┘
 ```
 
-| Part | Stack |
-| --- | --- |
-| `frontend/` | Next.js 16 (App Router), React 19, Tailwind CSS 4, DOMPurify, GSAP, Lenis |
-| `backend/` | Node 24, Express 5, `smtp-server` + `mailparser`, Prisma 7 (PostgreSQL), Zod, Pino |
-| `deploy/` | Caddyfile (automatic HTTPS) |
+| Part        | Stack                                                                                           |
+| ----------- | ----------------------------------------------------------------------------------------------- |
+| `frontend/` | Next.js 16 (App Router), React 19, Tailwind CSS 4, DOMPurify                                    |
+| `backend/`  | Node 24, Express 5, `smtp-server` + `mailparser`, Prisma 7 (PostgreSQL), Zod, Pino, prom-client |
+| `deploy/`   | Caddyfile (automatic HTTPS)                                                                     |
 
-The frontend always calls the API on its own origin at `/api`. In the Docker stack, Caddy sends `/api/*` straight to the backend. Elsewhere (local dev, Vercel), the Next.js route handler in `frontend/app/api/[...path]` proxies to `API_URL`. Either way the browser never needs CORS.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for request flows, the data model and design decisions.
 
 ## Quick start (local development)
 
-Requirements: Node.js 22.12+ (24 recommended) and PostgreSQL. Docker is the easiest way to get Postgres.
+Requirements: Node.js 22.12+ (24 recommended, see `.nvmrc`) and Docker (for Postgres).
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d
+npm run setup     # installs root tooling, backend and frontend dependencies
+npm run dev:db    # starts Postgres in Docker
 ```
 
 ```bash
 cd backend
 cp .env.example .env
-npm install
 npx prisma migrate deploy
 npm run dev
 ```
@@ -49,125 +65,133 @@ npm run dev
 ```bash
 cd frontend
 cp .env.example .env.local
-npm install
 npm run dev
 ```
 
-Open http://localhost:3000. To deliver a test message (HTML, inline image and attachment) to the local SMTP server on port 2525:
+Open http://localhost:3000. To deliver a test email (HTML, inline image and attachment) to the local SMTP server:
 
 ```bash
-cd backend && npm run send-test-email -- yourname
+npm run send-test-email --prefix backend -- yourname
 ```
 
-### Useful scripts
+### Quality checks
 
-| Where | Command | What it does |
-| --- | --- | --- |
-| backend | `npm run dev` | API + SMTP with reload |
-| backend | `npm test` | Unit and API tests (Vitest) |
-| backend | `npm run typecheck` / `npm run build` | Type-check / compile to `dist/` |
-| backend | `npm run prisma:migrate` | Create a new migration after editing `prisma/schema.prisma` |
-| frontend | `npm run lint` / `npm run typecheck` / `npm run build` | ESLint / tsc / production build |
+| Command (repository root) | What it does                                                                   |
+| ------------------------- | ------------------------------------------------------------------------------ |
+| `npm run check`           | Formatting, lint, type check and tests for everything; the same checks CI runs |
+| `npm run format`          | Format all files with Prettier (a pre-commit hook does this for staged files)  |
+| `npm test`                | Backend and frontend unit tests                                                |
+| `npm run build`           | Production builds                                                              |
+
+Backend integration tests need a migrated database:
+
+```bash
+TEST_DATABASE_URL=postgresql://tempmail:tempmail@localhost:5432/tempmail npm run test:coverage --prefix backend
+```
 
 ## Deploying
 
 ### Option A: one server with Docker Compose (recommended)
 
-Everything runs on one VPS: Postgres, backend, frontend, and Caddy, which gets TLS certificates automatically.
-
-1. **Server**: any Linux VPS with a public IPv4 address and **inbound port 25 open**. Some providers block port 25 by default, so check before you choose one.
+1. **Server**: a Linux VPS with a public IPv4 address and **inbound port 25 open**. Some providers block port 25 by default, so check before you choose one.
 2. **DNS** (here `SITE_DOMAIN` and `MAIL_DOMAIN` are both `tempmail.example.com`):
    ```
    tempmail.example.com.   A     <server-ip>
    tempmail.example.com.   MX 10 tempmail.example.com.
    ```
-   Set the server's reverse DNS (PTR) to the same hostname if your provider supports it.
+   Set reverse DNS (PTR) to the same hostname if your provider supports it.
 3. **Configure and start**:
    ```bash
    git clone <your-repo-url> temp-mail && cd temp-mail
-   cp .env.example .env        # set SITE_DOMAIN, MAIL_DOMAIN, POSTGRES_PASSWORD
+   cp .env.example .env        # set SITE_DOMAIN, MAIL_DOMAIN, POSTGRES_PASSWORD, SOURCE_URL
    docker compose up -d --build
    ```
-   The backend applies database migrations on every start.
 4. **Firewall**: allow 22, 25, 80 and 443.
-5. **Check it**:
-   ```bash
-   curl https://tempmail.example.com/api/health      # {"ok":true,"database":"up",...}
-   docker compose logs -f backend
-   ```
-   Then send an email from Gmail or similar to `anything@tempmail.example.com`.
+5. **Verify**: `curl https://tempmail.example.com/api/health/ready`, then send an email to `anything@tempmail.example.com`.
 
-To update, run `git pull && docker compose up -d --build`.
+Backups, monitoring, alerting, upgrades and troubleshooting are covered in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 ### Option B: frontend on Vercel, backend on a VPS
 
-- **Backend**: run `backend/Dockerfile` (or `npm ci && npm run build && npm run start:prod`) on a host with port 25 open. Put it behind a TLS reverse proxy such as `api.example.com`, and set `TRUST_PROXY=1`.
-- **Frontend**: import the repository into Vercel with **Root Directory = `frontend`**. Set `API_URL=https://api.example.com` and `NEXT_PUBLIC_SITE_URL=https://example.com`.
+- **Backend**: run `backend/Dockerfile` on a host with port 25 open. Put it behind a TLS reverse proxy such as `api.example.com`, and set `TRUST_PROXY=1`.
+- **Frontend**: import the repository into Vercel with **Root Directory = `frontend`**. Set `API_URL=https://api.example.com`, `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_SOURCE_URL`.
+
+### Pre-built images
+
+Pushing a tag such as `v2.1.0` runs `.github/workflows/release.yml`. It publishes `ghcr.io/<owner>/<repo>-backend` and `-frontend` images with SBOM and provenance attestations, and creates a GitHub release.
 
 ## Configuration
 
 ### Backend (`backend/.env`)
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `DATABASE_URL` | **required** | PostgreSQL connection string |
-| `MAIL_DOMAIN` | **required** | Domain that receives mail (`SMTP_DOMAIN` also accepted) |
-| `API_PORT` / `API_HOST` | `3001` / `0.0.0.0` | HTTP API listener |
-| `SMTP_PORT` / `SMTP_HOST` | `2525` / `0.0.0.0` | SMTP listener (map public port 25 to it) |
-| `SMTP_HOSTNAME` | `MAIL_DOMAIN` | Name in the SMTP greeting |
-| `SMTP_MAX_MESSAGE_BYTES` | `10485760` | Larger messages are rejected with 552 |
-| `SMTP_MAX_RECIPIENTS` | `50` | Recipients per message |
-| `SMTP_TLS_KEY_PATH` / `SMTP_TLS_CERT_PATH` | – | Enable STARTTLS with these PEM files |
-| `MAILBOX_TTL_HOURS` | `24` | Lifetime of mailboxes and messages. New mail extends the mailbox. |
-| `TRUST_PROXY` | `loopback` | Express `trust proxy` (hop count, `true`, or subnets). Needed for per-IP rate limits behind a proxy. |
-| `CORS_ORIGINS` | – | Only needed if browsers call the API from another origin |
-| `MAILBOX_CREATE_LIMIT_PER_HOUR` | `20` | New mailboxes per IP per hour (re-opening an existing one is free) |
-| `API_RATE_LIMIT_PER_MINUTE` | `120` | Requests per IP per minute |
-| `CLEANUP_ENABLED` / `CLEANUP_INTERVAL_MINUTES` | `true` / `15` | Expired-data cleanup |
-| `LOG_LEVEL` | `info` | Pino log level (JSON logs in production) |
-| `POSTHOG_KEY` / `POSTHOG_HOST` | – | Optional server analytics |
+| Variable                                       | Default            | Description                                                                                     |
+| ---------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                 | **required**       | PostgreSQL connection string                                                                    |
+| `MAIL_DOMAIN`                                  | **required**       | Domain that receives mail (`SMTP_DOMAIN` also accepted)                                         |
+| `API_PORT` / `API_HOST`                        | `3001` / `0.0.0.0` | HTTP API listener                                                                               |
+| `SMTP_PORT` / `SMTP_HOST`                      | `2525` / `0.0.0.0` | SMTP listener (map public port 25 to it)                                                        |
+| `SMTP_HOSTNAME`                                | `MAIL_DOMAIN`      | Name in the SMTP greeting                                                                       |
+| `SMTP_MAX_MESSAGE_BYTES`                       | `10485760`         | Larger messages are rejected with 552                                                           |
+| `SMTP_MAX_RECIPIENTS`                          | `50`               | Recipients per message                                                                          |
+| `SMTP_MAX_CONNECTIONS_PER_MINUTE`              | `60`               | Per-IP SMTP connections (421 when exceeded)                                                     |
+| `SMTP_TLS_KEY_PATH` / `SMTP_TLS_CERT_PATH`     | –                  | Enable STARTTLS with these PEM files                                                            |
+| `RESERVED_NAMES`                               | –                  | Extra names nobody may claim (role names are always reserved)                                   |
+| `MAILBOX_TTL_HOURS`                            | `24`               | Lifetime of mailboxes and messages. New mail extends the mailbox.                               |
+| `TRUST_PROXY`                                  | `loopback`         | Express `trust proxy` (hop count, `true`, or subnets). Needed for per-IP limits behind a proxy. |
+| `CORS_ORIGINS`                                 | –                  | Only needed if browsers call the API from another origin                                        |
+| `MAILBOX_CREATE_LIMIT_PER_HOUR`                | `20`               | New mailboxes per IP per hour (re-opening is free)                                              |
+| `API_RATE_LIMIT_PER_MINUTE`                    | `120`              | Requests per IP per minute                                                                      |
+| `REALTIME_PG_NOTIFY`                           | `true`             | Share live events across instances via Postgres                                                 |
+| `SSE_MAX_CLIENTS` / `SSE_MAX_CLIENTS_PER_IP`   | `5000` / `10`      | Live-connection limits                                                                          |
+| `METRICS_PORT` / `METRICS_HOST`                | – / `127.0.0.1`    | Prometheus `/metrics` listener (disabled when the port is unset)                                |
+| `CLEANUP_ENABLED` / `CLEANUP_INTERVAL_MINUTES` | `true` / `15`      | Expired-data cleanup                                                                            |
+| `LOG_LEVEL`                                    | `info`             | Pino log level (JSON logs outside development)                                                  |
+| `POSTHOG_KEY` / `POSTHOG_HOST`                 | –                  | Optional server analytics                                                                       |
 
-Invalid or missing configuration stops the server at startup with a clear message.
+Invalid configuration stops the server at startup with a clear message.
 
 ### Frontend (`frontend/.env.local`)
 
-| Variable | Description |
-| --- | --- |
-| `API_URL` | Backend URL used by the `/api` proxy (runtime, server-side). Default `http://localhost:3001`. |
-| `NEXT_PUBLIC_SITE_URL` | Public site URL for metadata, robots.txt and the sitemap (build time) |
-| `NEXT_PUBLIC_MAIL_DOMAIN` | Optional placeholder shown until `/api/config` loads |
-| `NEXT_PUBLIC_API_URL` | Optional: have browsers call the API directly (needs backend `CORS_ORIGINS`) |
-| `NEXT_PUBLIC_SOURCE_URL` | Source-code link in the footer (build time). Point it at your fork if you modify the app (AGPL). `SOURCE_URL` in the root `.env` for Docker. |
-| `NEXT_PUBLIC_POSTHOG_KEY` / `NEXT_PUBLIC_POSTHOG_HOST` | Optional analytics |
+| Variable                                               | Description                                                                                                                                  |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `API_URL`                                              | Backend URL used by the `/api` proxy (runtime, server-side). Default `http://localhost:3001`.                                                |
+| `NEXT_PUBLIC_SITE_URL`                                 | Public site URL for metadata, robots.txt, the sitemap and CSP (build time)                                                                   |
+| `NEXT_PUBLIC_SOURCE_URL`                               | Source-code link in the footer (build time). Point it at your fork if you modify the app (AGPL). `SOURCE_URL` in the root `.env` for Docker. |
+| `NEXT_PUBLIC_MAIL_DOMAIN`                              | Optional placeholder shown until `/api/config` loads                                                                                         |
+| `NEXT_PUBLIC_API_URL`                                  | Optional: browsers call the API directly (needs backend `CORS_ORIGINS`)                                                                      |
+| `NEXT_PUBLIC_POSTHOG_KEY` / `NEXT_PUBLIC_POSTHOG_HOST` | Optional analytics                                                                                                                           |
 
 ## API
 
-All routes are under `/api`. `:name` is the part of the address before the `@`.
+All routes are under `/api`. `:name` is the part of the address before the `@`. The full specification is at [`backend/openapi.yaml`](backend/openapi.yaml), and a running server serves it at `/api/openapi.yaml`.
 
-| Method | Route | Description |
-| --- | --- | --- |
-| `GET` | `/health` | Liveness and database check (`503` if the database is down) |
-| `GET` | `/config` | `{ domain, ttlHours, maxMessageBytes }` |
-| `POST` | `/mailboxes` | Body `{ "username"?: string }`. Returns `201` when created, `200` if it already existed. Omit the username for a random one. |
-| `GET` | `/mailboxes/:name` | Mailbox info and message summaries (newest first) |
-| `DELETE` | `/mailboxes/:name` | Delete the mailbox and all of its messages |
-| `GET` | `/mailboxes/:name/messages/:id` | Full message: `html`, `text`, `attachments`. Marks it read. |
-| `DELETE` | `/mailboxes/:name/messages/:id` | Delete one message |
-| `GET` | `/mailboxes/:name/messages/:id/raw` | Original message as `.eml` |
-| `GET` | `/mailboxes/:name/messages/:id/attachments/:index` | Attachment download. Only safe raster images are shown inline. Add `?download` to force a download. |
+| Method           | Route                                              | Description                                                                                                     |
+| ---------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `GET`            | `/health/live`, `/health/ready`, `/health`         | Liveness; readiness (database); alias of readiness                                                              |
+| `GET`            | `/config`                                          | `{ domain, ttlHours, maxMessageBytes }`                                                                         |
+| `POST`           | `/mailboxes`                                       | `{ "username"?: string }`. Returns `201` when created, `200` if it existed. Omit the username for a random one. |
+| `GET`            | `/mailboxes/:name`                                 | Mailbox info and message summaries                                                                              |
+| `GET`            | `/mailboxes/:name/events`                          | Server-Sent Events: `message` events with `{ id }` as mail arrives                                              |
+| `DELETE`         | `/mailboxes/:name`                                 | Delete the mailbox and all of its messages                                                                      |
+| `GET` / `DELETE` | `/mailboxes/:name/messages/:id`                    | Full message (marks it read) / delete it                                                                        |
+| `GET`            | `/mailboxes/:name/messages/:id/raw`                | Original message as `.eml`                                                                                      |
+| `GET`            | `/mailboxes/:name/messages/:id/attachments/:index` | Attachment (`?download` forces a download)                                                                      |
 
-Errors are JSON: `{ "error": "message" }`.
+Errors return `{ "error": "…", "code": "RESERVED_USERNAME", "requestId": "…" }`. Every response includes an `X-Request-Id` header. Rate limits are reported in `RateLimit` / `RateLimit-Policy` headers.
 
-## Security notes
+## Project docs
 
-- **Anyone who knows an address can read its inbox.** That is how temporary mail works, so never use it for anything sensitive. Random names (`swift-otter-4821`) are harder to guess than custom ones.
-- Email HTML goes through DOMPurify and is rendered in an `<iframe sandbox>` without `allow-scripts`, under its own Content Security Policy. Remote content is blocked by default.
-- Attachments are served with `Content-Security-Policy: sandbox` and `nosniff`. Anything other than PNG, JPEG, GIF, WebP, AVIF or BMP images is forced to download.
-- The site sends `Referrer-Policy: no-referrer`, so links clicked inside emails don't reveal the mailbox URL. `robots.txt` keeps mailboxes out of search engines.
-- The SMTP server only accepts recipients on `MAIL_DOMAIN`, so it is not an open relay. It has message-size and recipient limits.
+| Document                                     | Contents                                                                          |
+| -------------------------------------------- | --------------------------------------------------------------------------------- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, flows, data model, design decisions, scaling                          |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md)     | Deploy/upgrade, health checks, metrics and alerts, logs, backups, troubleshooting |
+| [SECURITY.md](SECURITY.md)                   | Security model and how to report vulnerabilities                                  |
+| [CONTRIBUTING.md](CONTRIBUTING.md)           | Development workflow and conventions                                              |
+| [CHANGELOG.md](CHANGELOG.md)                 | Release history                                                                   |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)     | Community standards                                                               |
 
 ## License
 
 [GNU Affero General Public License v3.0](./LICENSE) (AGPL-3.0). Originally created by [WilliamBenLaw](https://github.com/SheerWill007/TemptingMail).
 
-The AGPL applies to network use. If you run a modified version of this service for other people, you must offer those users the source code of your version. The footer links to it: set `NEXT_PUBLIC_SOURCE_URL` to your repository.
+The AGPL applies to network use. If you run a modified version of this service for other people, you must offer those users the source code of your version. The footer links to it: set `NEXT_PUBLIC_SOURCE_URL` (or `SOURCE_URL` for Docker) to your repository.

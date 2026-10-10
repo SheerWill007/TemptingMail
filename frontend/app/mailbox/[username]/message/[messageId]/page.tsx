@@ -95,7 +95,10 @@ export default function MessagePage() {
     <PageShell>
       <div className="mx-auto max-w-4xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href={inboxHref} className="inline-flex items-center gap-2 text-white/60 transition-colors hover:text-white">
+          <Link
+            href={inboxHref}
+            className="inline-flex items-center gap-2 text-white/60 transition-colors hover:text-white"
+          >
             <ArrowLeft className="size-4" /> Back to Mailbox
           </Link>
           <div className="flex gap-2">
@@ -110,7 +113,9 @@ export default function MessagePage() {
 
         <article className="glass overflow-hidden rounded-2xl">
           <header className="space-y-4 border-b border-white/10 p-6 md:p-8">
-            <h1 className="text-2xl font-bold break-words text-white md:text-3xl">{message.subject || '(No Subject)'}</h1>
+            <h1 className="text-2xl font-bold break-words text-white md:text-3xl">
+              {message.subject || '(No Subject)'}
+            </h1>
             <dl className="grid grid-cols-[4rem_1fr] gap-x-2 gap-y-2 text-sm">
               <dt className="text-white/50">From</dt>
               <dd className="min-w-0 break-words text-white/80">
@@ -149,8 +154,12 @@ export default function MessagePage() {
                   <span />
                 )}
                 {body?.remote && !showRemote && (
-                  <button onClick={() => setShowRemote(true)} className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white">
-                    <ImageOff className="size-4" /> Remote images blocked · <span className="underline">Show images</span>
+                  <button
+                    onClick={() => setShowRemote(true)}
+                    className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white"
+                  >
+                    <ImageOff className="size-4" /> Remote images blocked ·{' '}
+                    <span className="underline">Show images</span>
                   </button>
                 )}
               </div>

@@ -15,5 +15,4 @@
 - [ ] Tests added or updated for behaviour changes
 - [ ] Schema changes include a Prisma migration
 - [ ] New configuration is documented in `.env.example` and the README
-- [ ] `CHANGELOG.md` updated under _Unreleased_
 - [ ] No message content or full addresses are logged or sent to analytics

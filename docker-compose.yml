@@ -63,7 +63,7 @@ services:
       args:
         NEXT_PUBLIC_SITE_URL: https://${SITE_DOMAIN:?set SITE_DOMAIN in .env}
         NEXT_PUBLIC_MAIL_DOMAIN: ${MAIL_DOMAIN}
-        NEXT_PUBLIC_SOURCE_URL: ${SOURCE_URL:-}
+        NEXT_PUBLIC_SOURCE_URL: ${SOURCE_URL:-https://github.com/SheerWill007/TemptingMail}
         NEXT_PUBLIC_POSTHOG_KEY: ${NEXT_PUBLIC_POSTHOG_KEY:-}
         NEXT_PUBLIC_POSTHOG_HOST: ${NEXT_PUBLIC_POSTHOG_HOST:-}
     restart: unless-stopped

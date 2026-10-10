@@ -4,5 +4,6 @@ out
 .env
 .env.*
 !.env.example
+!.env.production
 Dockerfile
 .dockerignore

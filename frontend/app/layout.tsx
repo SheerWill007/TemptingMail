@@ -2,15 +2,15 @@ import type { Metadata, Viewport } from 'next'
 import { LenisProvider } from '@/components/LenisProvider'
 import { PostHogProvider } from '@/components/PostHogProvider'
 import { Toaster } from '@/components/ui/sonner'
+import { SITE_URL } from '@/lib/site'
 import './globals.css'
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 const title = 'Temp Mail - Free Disposable Email'
 const description =
   'Create a disposable email address instantly. No registration, no tracking. Messages self-destruct after 24 hours.'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(SITE_URL),
   title: { default: title, template: '%s · Temp Mail' },
   description,
   applicationName: 'Temp Mail',

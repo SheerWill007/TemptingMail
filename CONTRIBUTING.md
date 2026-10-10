@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve Temp Mail! Please read the [Code of Conduct](CODE_OF_CONDUCT.md) first. Report security issues privately as described in [SECURITY.md](SECURITY.md), never in public issues.
+Thanks for helping improve Temp Mail! Please be respectful in all project spaces. Report security issues privately through GitHub (**Security → Report a vulnerability**), never in public issues.
 
 ## Setup
 
@@ -16,8 +16,7 @@ Then follow **Quick start** in the [README](README.md). Use `npm run send-test-e
 1. Create a branch: `feature/…`, `fix/…`, `docs/…` or `chore/…`.
 2. Make your change with tests. Backend tests live in `backend/test/` (integration tests in `backend/test/integration/`); frontend tests in `frontend/tests/`.
 3. Run `npm run check` from the repository root. It runs formatting, lint, type checks and unit tests, like CI.
-4. Add an entry under **Unreleased** in [CHANGELOG.md](CHANGELOG.md).
-5. Open a pull request and fill in the template.
+4. Open a pull request and fill in the template.
 
 A pre-commit hook formats staged files with Prettier. CI additionally runs integration tests against Postgres, enforces coverage thresholds, builds the Docker images and runs CodeQL.
 
@@ -33,7 +32,7 @@ A pre-commit hook formats staged files with Prettier. CI additionally runs integ
 
 ## Releasing (maintainers)
 
-1. Move the **Unreleased** changelog entries under a new version heading and bump `version` in the three `package.json` files.
-2. Tag and push: `git tag v2.2.0 && git push origin v2.2.0`. The release workflow publishes the Docker images and the GitHub release.
+1. Bump `version` in the three `package.json` files.
+2. Tag and push: `git tag v2.2.0 && git push origin v2.2.0`. The release workflow publishes the Docker images and a GitHub release with notes generated from the merged pull requests.
 
 By contributing, you agree that your contributions are licensed under the [GNU Affero General Public License v3.0](./LICENSE).

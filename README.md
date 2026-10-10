@@ -94,27 +94,27 @@ TEST_DATABASE_URL=postgresql://tempmail:tempmail@localhost:5432/tempmail npm run
 ### Option A: one server with Docker Compose (recommended)
 
 1. **Server**: a Linux VPS with a public IPv4 address and **inbound port 25 open**. Some providers block port 25 by default, so check before you choose one.
-2. **DNS** (here `SITE_DOMAIN` and `MAIL_DOMAIN` are both `tempmail.example.com`):
+2. **DNS** at your `willx.tech` DNS provider (the site and mail both use `temp.willx.tech`):
    ```
-   tempmail.example.com.   A     <server-ip>
-   tempmail.example.com.   MX 10 tempmail.example.com.
+   temp.willx.tech.   A     <server-ip>
+   temp.willx.tech.   MX 10 temp.willx.tech.
    ```
-   Set reverse DNS (PTR) to the same hostname if your provider supports it.
+   Don't add an MX record to `willx.tech` itself. That would route all `@willx.tech` email to this server, and your existing records for `willx.tech` stay untouched. Set reverse DNS (PTR) for the server IP to `temp.willx.tech` if your provider supports it.
 3. **Configure and start**:
    ```bash
    git clone <your-repo-url> temp-mail && cd temp-mail
-   cp .env.example .env        # set SITE_DOMAIN, MAIL_DOMAIN, POSTGRES_PASSWORD, SOURCE_URL
+   cp .env.example .env        # domains are preset to temp.willx.tech; set POSTGRES_PASSWORD
    docker compose up -d --build
    ```
 4. **Firewall**: allow 22, 25, 80 and 443.
-5. **Verify**: `curl https://tempmail.example.com/api/health/ready`, then send an email to `anything@tempmail.example.com`.
+5. **Verify**: `curl https://temp.willx.tech/api/health/ready`, then send an email to `anything@temp.willx.tech`.
 
 Backups, monitoring, alerting, upgrades and troubleshooting are covered in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 ### Option B: frontend on Vercel, backend on a VPS
 
-- **Backend**: run `backend/Dockerfile` on a host with port 25 open. Put it behind a TLS reverse proxy such as `api.example.com`, and set `TRUST_PROXY=1`.
-- **Frontend**: import the repository into Vercel with **Root Directory = `frontend`**. Set `API_URL=https://api.example.com`, `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_SOURCE_URL`.
+- **Backend**: run `backend/Dockerfile` on a host with port 25 open, with `MAIL_DOMAIN=temp.willx.tech`. Put it behind a TLS reverse proxy such as `api.temp.willx.tech`, and set `TRUST_PROXY=1`.
+- **Frontend**: import the repository into Vercel with **Root Directory = `frontend`** and set `API_URL=https://api.temp.willx.tech`. The site URL, mail domain and source link already default to `temp.willx.tech` through `frontend/.env.production`.
 
 ### Pre-built images
 
@@ -185,10 +185,9 @@ Errors return `{ "error": "…", "code": "RESERVED_USERNAME", "requestId": "…"
 | -------------------------------------------- | --------------------------------------------------------------------------------- |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, flows, data model, design decisions, scaling                          |
 | [docs/OPERATIONS.md](docs/OPERATIONS.md)     | Deploy/upgrade, health checks, metrics and alerts, logs, backups, troubleshooting |
-| [SECURITY.md](SECURITY.md)                   | Security model and how to report vulnerabilities                                  |
 | [CONTRIBUTING.md](CONTRIBUTING.md)           | Development workflow and conventions                                              |
-| [CHANGELOG.md](CHANGELOG.md)                 | Release history                                                                   |
-| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)     | Community standards                                                               |
+
+Security vulnerabilities should be reported privately through GitHub (**Security → Report a vulnerability**), not in public issues.
 
 ## License
 

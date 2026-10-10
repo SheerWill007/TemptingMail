@@ -5,6 +5,7 @@ build/
 .env
 .env.*
 !.env.example
+!.env.production
 *.tsbuildinfo
 next-env.d.ts
 npm-debug.log*

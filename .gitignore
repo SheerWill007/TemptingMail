@@ -5,6 +5,8 @@ node_modules/
 .env
 .env.*
 !.env.example
+# Public production defaults (no secrets)
+!frontend/.env.production
 
 # Build outputs
 dist/

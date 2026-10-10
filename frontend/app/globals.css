@@ -1,0 +1,70 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Courier New", monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.25) transparent;
+  }
+
+  body {
+    @apply min-h-screen overflow-x-hidden font-sans text-white antialiased;
+    background-color: #0b0d12;
+    background-image: url("/bg.webp");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-white/70;
+  }
+
+  ::selection {
+    background-color: rgb(255 255 255 / 0.3);
+  }
+
+  /* Lenis smooth scroll */
+  html.lenis {
+    height: auto;
+  }
+  .lenis.lenis-smooth {
+    scroll-behavior: auto;
+  }
+  .lenis.lenis-smooth [data-lenis-prevent] {
+    overscroll-behavior: contain;
+  }
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
+  .lenis.lenis-scrolling iframe {
+    pointer-events: none;
+  }
+}
+
+@utility glass {
+  @apply border border-white/20 bg-white/10 shadow-lg backdrop-blur-xl;
+}
+
+@utility glass-button {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-3 font-medium text-white backdrop-blur-xl transition-all hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility solid-button {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-black shadow-md transition-all hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Initial state for GSAP fade-ins; content stays visible if JS is disabled. */
+@media (scripting: enabled) {
+  .reveal {
+    opacity: 0;
+  }
+}

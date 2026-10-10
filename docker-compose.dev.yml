@@ -1,0 +1,17 @@
+# Local development database only. Run the backend and frontend with `npm run dev`.
+#   docker compose -f docker-compose.dev.yml up -d
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: tempmail
+      POSTGRES_PASSWORD: tempmail
+      POSTGRES_DB: tempmail
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+
+volumes:
+  pgdata-dev:

@@ -1,0 +1,38 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Mailbox {
+  id        String    @id @default(cuid())
+  address   String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  messages  Message[]
+
+  @@index([expiresAt])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  mailbox        Mailbox  @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  mailboxId      String
+  from           String
+  subject        String?
+  preview        String   @default("")
+  size           Int      @default(0)
+  hasAttachments Boolean  @default(false)
+  isRead         Boolean  @default(false)
+  raw            Bytes
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+
+  @@index([mailboxId, createdAt])
+  @@index([expiresAt])
+}

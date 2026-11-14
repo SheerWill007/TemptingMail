@@ -103,9 +103,8 @@ async function open(kind: 'custom' | 'random') {
         </div>
 
         <p class="text-sm text-white/70 drop-shadow-md">
-          Your email will be: <span class="font-semibold break-all text-white">{{ username || 'username' }}</span>@{{
-            domain
-          }}
+          Your email will be: <span class="font-semibold break-all text-white">{{ username || 'username' }}</span
+          >@{{ domain }}
         </p>
 
         <div v-if="recent.length" class="flex flex-wrap items-center justify-center gap-2 pt-2 text-sm">

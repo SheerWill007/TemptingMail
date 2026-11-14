@@ -7,6 +7,7 @@ import { logger } from '../lib/logger.js';
 import { httpDuration, httpRequests } from '../lib/metrics.js';
 import { errorHandler, notFoundHandler } from './errors.js';
 import { generalLimiter } from './rateLimit.js';
+import { createInboundRouter } from './inbound.js';
 import { createRouter } from './routes.js';
 
 const REQUEST_ID_RE = /^[\w.-]{1,128}$/;
@@ -63,6 +64,8 @@ export function createApp() {
     res.json({ name: 'temp-mail-api', health: '/api/health', docs: '/api/openapi.yaml' });
   });
 
+  // Mail relays are authenticated by a shared secret, so they bypass the per-IP API limit.
+  app.use('/api/inbound', createInboundRouter());
   app.use('/api', generalLimiter, createRouter());
   app.use(notFoundHandler);
   app.use(errorHandler);

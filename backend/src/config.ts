@@ -82,6 +82,10 @@ const schema = z.object({
   CLEANUP_ENABLED: bool(true),
   CLEANUP_INTERVAL_MINUTES: z.coerce.number().positive().default(15),
 
+  // Shared secret for POST /api/inbound/email (mail handed over by an HTTP relay such as a
+  // Cloudflare Email Worker). The endpoint is disabled while this is unset.
+  INBOUND_SECRET: z.string().min(24, 'INBOUND_SECRET must be at least 24 characters').optional(),
+
   POSTHOG_KEY: z.string().optional(),
   POSTHOG_HOST: z.url().default('https://us.i.posthog.com'),
 });
@@ -89,6 +93,8 @@ const schema = z.object({
 function load() {
   const env: Record<string, string | undefined> = { ...process.env };
   if (!env.MAIL_DOMAIN && env.SMTP_DOMAIN) env.MAIL_DOMAIN = env.SMTP_DOMAIN;
+  // Platforms such as Render assign the HTTP port through PORT.
+  if (!env.API_PORT && env.PORT) env.API_PORT = env.PORT;
   // Treat `FOO=` in an .env file as unset so defaults apply.
   for (const key of Object.keys(env)) {
     if (env[key] === '') delete env[key];
@@ -126,6 +132,9 @@ function load() {
       tlsKeyPath: e.SMTP_TLS_KEY_PATH,
       tlsCertPath: e.SMTP_TLS_CERT_PATH,
       maxConnectionsPerMinute: e.SMTP_MAX_CONNECTIONS_PER_MINUTE,
+    },
+    inbound: {
+      secret: e.INBOUND_SECRET,
     },
     reservedNames: e.RESERVED_NAMES.map((n) => n.toLowerCase()),
     realtime: {

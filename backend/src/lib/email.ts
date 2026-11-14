@@ -67,6 +67,19 @@ export function isOurDomain(domain: string): boolean {
   return domain.toLowerCase().replace(/\.$/, '') === config.mailDomain;
 }
 
+export type RecipientCheck = { ok: true; address: string } | { ok: false; reason: 'relay' | 'unknown_user' };
+
+/** Decides whether we accept mail for an envelope recipient, and normalizes it if so. */
+export function checkRecipient(address: string): RecipientCheck {
+  const parsed = parseAddress(address);
+  if (!parsed || !isOurDomain(parsed.domain)) return { ok: false, reason: 'relay' };
+  // Reserved role addresses (admin@, postmaster@, ...) must never land in a public inbox.
+  if (!isValidLocalPart(parsed.localPart) || isReservedLocalPart(parsed.localPart)) {
+    return { ok: false, reason: 'unknown_user' };
+  }
+  return { ok: true, address: toAddress(parsed.localPart) };
+}
+
 const ADJECTIVES = [
   'amber',
   'bold',

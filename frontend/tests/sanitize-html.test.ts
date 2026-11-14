@@ -1,6 +1,6 @@
 import DOMPurify from 'dompurify'
 import { describe, expect, it } from 'vitest'
-import { hasRemoteContent, sanitizeEmailHtml, textToHtml } from '@/lib/sanitize-html'
+import { hasRemoteContent, sanitizeEmailHtml, textToHtml } from '~/utils/sanitize-html'
 
 describe('sanitizeEmailHtml', () => {
   it('runs with a real DOMPurify (not the fail-closed fallback)', () => {

@@ -6,7 +6,7 @@
   "endOfLine": "lf",
   "overrides": [
     {
-      "files": "frontend/**/*.{ts,tsx,mts,mjs}",
+      "files": "frontend/**/*.{ts,tsx,mts,mjs,vue}",
       "options": { "semi": false }
     },
     {

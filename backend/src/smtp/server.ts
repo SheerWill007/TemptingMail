@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { SMTPServer, type SMTPServerOptions } from 'smtp-server';
 import { config } from '../config.js';
 import { trackServerEvent } from '../lib/analytics.js';
-import { isOurDomain, isReservedLocalPart, isValidLocalPart, parseAddress, toAddress } from '../lib/email.js';
+import { checkRecipient } from '../lib/email.js';
 import { logger } from '../lib/logger.js';
 import { smtpMessages, smtpRejections } from '../lib/metrics.js';
 import { storeIncomingMessage } from '../services/mailStore.js';
@@ -45,15 +45,10 @@ export function createSmtpServer() {
     },
 
     onRcptTo(address, session, callback) {
-      const parsed = parseAddress(address.address);
-      if (!parsed || !isOurDomain(parsed.domain)) {
-        smtpRejections.inc({ reason: 'relay' });
-        return callback(smtpError('Relay access denied', 550));
-      }
-      // Reserved role addresses (admin@, postmaster@, ...) must never land in a public inbox.
-      if (!isValidLocalPart(parsed.localPart) || isReservedLocalPart(parsed.localPart)) {
-        smtpRejections.inc({ reason: 'unknown_user' });
-        return callback(smtpError('No such user here', 550));
+      const check = checkRecipient(address.address);
+      if (!check.ok) {
+        smtpRejections.inc({ reason: check.reason });
+        return callback(smtpError(check.reason === 'relay' ? 'Relay access denied' : 'No such user here', 550));
       }
       if (session.envelope.rcptTo.length >= config.smtp.maxRecipients) {
         smtpRejections.inc({ reason: 'too_many_recipients' });
@@ -82,10 +77,7 @@ export function createSmtpServer() {
 
         const recipients = [
           ...new Set(
-            session.envelope.rcptTo
-              .map((r) => parseAddress(r.address))
-              .filter((p): p is NonNullable<typeof p> => p !== null)
-              .map((p) => toAddress(p.localPart)),
+            session.envelope.rcptTo.map((r) => checkRecipient(r.address)).flatMap((c) => (c.ok ? [c.address] : [])),
           ),
         ];
 

@@ -1,9 +1,7 @@
 node_modules
-.next
-out
+.nuxt
+.output
 .env
 .env.*
 !.env.example
-!.env.production
-Dockerfile
-.dockerignore
+tests

@@ -1,0 +1,10 @@
+name = "temp-mail-inbound"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+# Replace with your backend's public URL.
+INBOUND_URL = "https://temp-mail-api.onrender.com/api/inbound/email"
+
+# The secret is set separately so it never lands in git:
+#   npx wrangler secret put INBOUND_SECRET

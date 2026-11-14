@@ -5,6 +5,8 @@ export type ErrorCode =
   | 'BAD_REQUEST'
   | 'INVALID_USERNAME'
   | 'RESERVED_USERNAME'
+  | 'UNAUTHORIZED'
+  | 'NO_VALID_RECIPIENTS'
   | 'NOT_FOUND'
   | 'MESSAGE_NOT_FOUND'
   | 'ATTACHMENT_NOT_FOUND'
@@ -16,6 +18,7 @@ export type ErrorCode =
 
 const DEFAULT_CODES: Record<number, ErrorCode> = {
   400: 'BAD_REQUEST',
+  401: 'UNAUTHORIZED',
   404: 'NOT_FOUND',
   413: 'PAYLOAD_TOO_LARGE',
   429: 'RATE_LIMITED',

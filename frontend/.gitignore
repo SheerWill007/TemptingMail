@@ -1,11 +1,9 @@
-node_modules/
-.next/
-out/
-build/
+node_modules
+.nuxt
+.output
+.data
+.vercel
 .env
 .env.*
 !.env.example
-!.env.production
-*.tsbuildinfo
-next-env.d.ts
-npm-debug.log*
+*.log

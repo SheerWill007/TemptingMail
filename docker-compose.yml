@@ -1,4 +1,4 @@
-# Production stack: Postgres + API/SMTP backend + Next.js frontend + Caddy (automatic HTTPS).
+# Production stack: Postgres + API/SMTP backend + Nuxt frontend + Caddy (automatic HTTPS).
 #   cp .env.example .env   # then edit
 #   docker compose up -d --build
 
@@ -60,18 +60,21 @@ services:
   frontend:
     build:
       context: ./frontend
+      # Read at build time for the Content-Security-Policy header.
       args:
-        NEXT_PUBLIC_SITE_URL: https://${SITE_DOMAIN:?set SITE_DOMAIN in .env}
-        NEXT_PUBLIC_MAIL_DOMAIN: ${MAIL_DOMAIN}
-        NEXT_PUBLIC_SOURCE_URL: ${SOURCE_URL:-https://github.com/SheerWill007/TemptingMail}
-        NEXT_PUBLIC_POSTHOG_KEY: ${NEXT_PUBLIC_POSTHOG_KEY:-}
-        NEXT_PUBLIC_POSTHOG_HOST: ${NEXT_PUBLIC_POSTHOG_HOST:-}
+        NUXT_PUBLIC_SITE_URL: https://${SITE_DOMAIN:?set SITE_DOMAIN in .env}
+        NUXT_PUBLIC_POSTHOG_KEY: ${NUXT_PUBLIC_POSTHOG_KEY:-}
     restart: unless-stopped
     logging: *logging
     depends_on:
       - backend
     environment:
-      API_URL: http://backend:3001
+      NUXT_API_URL: http://backend:3001
+      NUXT_PUBLIC_SITE_URL: https://${SITE_DOMAIN}
+      NUXT_PUBLIC_MAIL_DOMAIN: ${MAIL_DOMAIN}
+      NUXT_PUBLIC_SOURCE_URL: ${SOURCE_URL:-https://github.com/SheerWill007/TemptingMail}
+      NUXT_PUBLIC_POSTHOG_KEY: ${NUXT_PUBLIC_POSTHOG_KEY:-}
+      NUXT_PUBLIC_POSTHOG_HOST: ${NUXT_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
 
   caddy:
     image: caddy:2-alpine

@@ -13,7 +13,7 @@
 		}
 	}
 
-	# API goes straight to the backend; everything else to Next.js.
+	# API goes straight to the backend; everything else to the Nuxt frontend.
 	handle /api/* {
 		encode zstd gzip
 		reverse_proxy backend:3001 {

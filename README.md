@@ -34,17 +34,17 @@ A self-hosted disposable email service. Pick a name (or get a random one), share
 
 ```
  Browser ──HTTPS──► Caddy ──/api/*──► backend: HTTP API (:3001) + live events ──┐
-                      └────other────► frontend: Next.js (:3000)                  ├──► PostgreSQL
+                      └────other────► frontend: Nuxt (:3000)                     ├──► PostgreSQL
  Mail servers ──SMTP :25──────────► backend: SMTP server (:2525) ───────────────┘
 ```
 
 | Part        | Stack                                                                                           |
 | ----------- | ----------------------------------------------------------------------------------------------- |
-| `frontend/` | Next.js 16 (App Router), React 19, Tailwind CSS 4, DOMPurify                                    |
+| `frontend/` | Nuxt 4 (Vue 3), Tailwind CSS 4, DOMPurify                                                       |
 | `backend/`  | Node 24, Express 5, `smtp-server` + `mailparser`, Prisma 7 (PostgreSQL), Zod, Pino, prom-client |
 | `deploy/`   | Caddyfile (automatic HTTPS)                                                                     |
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for request flows, the data model and design decisions.
+Mail reaches the backend either over SMTP (port 25, self-hosted) or over HTTPS at `POST /api/inbound/email`, sent by a relay such as the Cloudflare Email Worker in [`deploy/cloudflare-email-worker`](deploy/cloudflare-email-worker). The HTTPS route is for hosts that cannot open port 25.
 
 ## Quick start (local development)
 
@@ -64,7 +64,7 @@ npm run dev
 
 ```bash
 cd frontend
-cp .env.example .env.local
+cp .env.example .env
 npm run dev
 ```
 
@@ -109,12 +109,17 @@ TEST_DATABASE_URL=postgresql://tempmail:tempmail@localhost:5432/tempmail npm run
 4. **Firewall**: allow 22, 25, 80 and 443.
 5. **Verify**: `curl https://temp.willx.tech/api/health/ready`, then send an email to `anything@temp.willx.tech`.
 
-Backups, monitoring, alerting, upgrades and troubleshooting are covered in [docs/OPERATIONS.md](docs/OPERATIONS.md).
+### Option B: managed hosting (Render + Neon + Vercel + Cloudflare Email Routing)
 
-### Option B: frontend on Vercel, backend on a VPS
+No server to run, and no port 25 needed.
 
-- **Backend**: run `backend/Dockerfile` on a host with port 25 open, with `MAIL_DOMAIN=temp.willx.tech`. Put it behind a TLS reverse proxy such as `api.temp.willx.tech`, and set `TRUST_PROXY=1`.
-- **Frontend**: import the repository into Vercel with **Root Directory = `frontend`** and set `API_URL=https://api.temp.willx.tech`. The site URL, mail domain and source link already default to `temp.willx.tech` through `frontend/.env.production`.
+1. **Database**: create a Postgres database (for example on Neon). Use its **direct** connection string, not the pooled one: live updates rely on `LISTEN/NOTIFY`.
+2. **Backend on Render**: a Node web service with root directory `backend`, build command `npm ci --include=dev && npm run build` and start command `npm run start:prod`, which applies migrations on start. Environment: `DATABASE_URL`, `MAIL_DOMAIN=temp.willx.tech`, `SMTP_ENABLED=false`, `INBOUND_SECRET` (`openssl rand -hex 32`), `TRUST_PROXY=true` and `CORS_ORIGINS=<frontend origin>`.
+3. **Frontend on Vercel**: import the repository with **Root Directory = `frontend`** (framework: Nuxt). Set `NUXT_API_URL=<backend URL>`, `NUXT_PUBLIC_API_BASE=<backend URL>`, `NUXT_PUBLIC_SITE_URL=<site URL>` and `NUXT_PUBLIC_MAIL_DOMAIN=temp.willx.tech`.
+4. **Mail with Cloudflare Email Routing** (the domain's DNS must be on Cloudflare):
+   - Enable Email Routing for `temp.willx.tech`. Cloudflare adds the MX and SPF records.
+   - Deploy the worker: `cd deploy/cloudflare-email-worker`, set `INBOUND_URL` in `wrangler.toml`, then run `npx wrangler deploy` and `npx wrangler secret put INBOUND_SECRET` (the same value as the backend's).
+   - Under Email Routing, set the **catch-all** action to _Send to a Worker_ → `temp-mail-inbound`.
 
 ### Pre-built images
 
@@ -146,20 +151,22 @@ Pushing a tag such as `v2.1.0` runs `.github/workflows/release.yml`. It publishe
 | `METRICS_PORT` / `METRICS_HOST`                | – / `127.0.0.1`    | Prometheus `/metrics` listener (disabled when the port is unset)                                |
 | `CLEANUP_ENABLED` / `CLEANUP_INTERVAL_MINUTES` | `true` / `15`      | Expired-data cleanup                                                                            |
 | `LOG_LEVEL`                                    | `info`             | Pino log level (JSON logs outside development)                                                  |
+| `INBOUND_SECRET`                               | –                  | Bearer token for `POST /api/inbound/email`. The route is disabled when unset (min. 24 chars).   |
+| `PORT`                                         | –                  | Used as `API_PORT` when that is unset (Render and similar platforms)                            |
 | `POSTHOG_KEY` / `POSTHOG_HOST`                 | –                  | Optional server analytics                                                                       |
 
 Invalid configuration stops the server at startup with a clear message.
 
-### Frontend (`frontend/.env.local`)
+### Frontend (`frontend/.env`)
 
-| Variable                                               | Description                                                                                                                                  |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `API_URL`                                              | Backend URL used by the `/api` proxy (runtime, server-side). Default `http://localhost:3001`.                                                |
-| `NEXT_PUBLIC_SITE_URL`                                 | Public site URL for metadata, robots.txt, the sitemap and CSP (build time)                                                                   |
-| `NEXT_PUBLIC_SOURCE_URL`                               | Source-code link in the footer (build time). Point it at your fork if you modify the app (AGPL). `SOURCE_URL` in the root `.env` for Docker. |
-| `NEXT_PUBLIC_MAIL_DOMAIN`                              | Optional placeholder shown until `/api/config` loads                                                                                         |
-| `NEXT_PUBLIC_API_URL`                                  | Optional: browsers call the API directly (needs backend `CORS_ORIGINS`)                                                                      |
-| `NEXT_PUBLIC_POSTHOG_KEY` / `NEXT_PUBLIC_POSTHOG_HOST` | Optional analytics                                                                                                                           |
+| Variable                                               | Description                                                                                                                                         |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NUXT_API_URL`                                         | Backend URL used by the `/api` proxy (runtime, server-side). Default `http://localhost:3001`.                                                       |
+| `NUXT_PUBLIC_SITE_URL`                                 | Public site URL for metadata, robots.txt and the sitemap. Also read at build time for the CSP header.                                               |
+| `NUXT_PUBLIC_API_BASE`                                 | Optional backend origin that browsers reach directly for live updates and downloads (needs backend `CORS_ORIGINS`). Read at build time and runtime. |
+| `NUXT_PUBLIC_SOURCE_URL`                               | Source-code link in the footer. Point it at your fork if you modify the app (AGPL). `SOURCE_URL` in the root `.env` for Docker.                     |
+| `NUXT_PUBLIC_MAIL_DOMAIN`                              | Optional placeholder shown until `/api/config` loads                                                                                                |
+| `NUXT_PUBLIC_POSTHOG_KEY` / `NUXT_PUBLIC_POSTHOG_HOST` | Optional analytics                                                                                                                                  |
 
 ## API
 
@@ -176,16 +183,15 @@ All routes are under `/api`. `:name` is the part of the address before the `@`. 
 | `GET` / `DELETE` | `/mailboxes/:name/messages/:id`                    | Full message (marks it read) / delete it                                                                        |
 | `GET`            | `/mailboxes/:name/messages/:id/raw`                | Original message as `.eml`                                                                                      |
 | `GET`            | `/mailboxes/:name/messages/:id/attachments/:index` | Attachment (`?download` forces a download)                                                                      |
+| `POST`           | `/inbound/email`                                   | Deliver a raw message (`Authorization: Bearer <INBOUND_SECRET>`, recipients in `X-Envelope-To`). Returns `202`. |
 
 Errors return `{ "error": "…", "code": "RESERVED_USERNAME", "requestId": "…" }`. Every response includes an `X-Request-Id` header. Rate limits are reported in `RateLimit` / `RateLimit-Policy` headers.
 
 ## Project docs
 
-| Document                                     | Contents                                                                          |
-| -------------------------------------------- | --------------------------------------------------------------------------------- |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, flows, data model, design decisions, scaling                          |
-| [docs/OPERATIONS.md](docs/OPERATIONS.md)     | Deploy/upgrade, health checks, metrics and alerts, logs, backups, troubleshooting |
-| [CONTRIBUTING.md](CONTRIBUTING.md)           | Development workflow and conventions                                              |
+| Document                           | Contents                             |
+| ---------------------------------- | ------------------------------------ |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Development workflow and conventions |
 
 Security vulnerabilities should be reported privately through GitHub (**Security → Report a vulnerability**), not in public issues.
 
@@ -193,4 +199,4 @@ Security vulnerabilities should be reported privately through GitHub (**Security
 
 [GNU Affero General Public License v3.0](./LICENSE) (AGPL-3.0). Originally created by [WilliamBenLaw](https://github.com/SheerWill007/TemptingMail).
 
-The AGPL applies to network use. If you run a modified version of this service for other people, you must offer those users the source code of your version. The footer links to it: set `NEXT_PUBLIC_SOURCE_URL` (or `SOURCE_URL` for Docker) to your repository.
+The AGPL applies to network use. If you run a modified version of this service for other people, you must offer those users the source code of your version. The footer links to it: set `NUXT_PUBLIC_SOURCE_URL` (or `SOURCE_URL` for Docker) to your repository.

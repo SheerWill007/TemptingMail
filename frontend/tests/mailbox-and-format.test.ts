@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { formatBytes, parseSender, timeAgo, timeLeft } from '@/lib/format'
-import { cleanUsernameInput, isValidUsername, safeDecode } from '@/lib/mailbox'
+import { formatBytes, parseSender, timeAgo, timeLeft } from '~/utils/format'
+import { cleanUsernameInput, isValidUsername, safeDecode } from '~/utils/username'
 
 describe('username helpers', () => {
   it.each(['a', 'john.doe', 'john_doe-99'])('accepts %s', (v) => expect(isValidUsername(v)).toBe(true))

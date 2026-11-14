@@ -29,3 +29,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Wrangler local secrets
+.dev.vars

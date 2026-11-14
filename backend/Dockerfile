@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-slim AS base
+FROM node:25-slim AS base
 # OpenSSL is needed by the Prisma schema engine (used for `migrate deploy`).
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
